@@ -1,0 +1,11 @@
+-Iinclude
+-DSOKOL_METAL
+-ObjC
+-std=c99
+-Wall 
+-Wextra
+-Wshadow
+-Wno-unused-function
+-Wno-unused-variable
+-Wno-missing-field-initializers
+

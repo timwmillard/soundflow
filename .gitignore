@@ -1,0 +1,11 @@
+
+.DS_Store
+
+/tinyswords
+/tinyswords.dSYM
+/sokol.o
+
+/tinyswords.html
+/tinyswords.js
+/tinyswords.wasm
+
