@@ -1,11 +1,11 @@
 
 .DS_Store
 
-/tinyswords
-/tinyswords.dSYM
+/soundflow
+/soundflow.dSYM
 /sokol.o
 
-/tinyswords.html
-/tinyswords.js
-/tinyswords.wasm
+/soundflow.html
+/soundflow.js
+/soundflow.wasm
 
