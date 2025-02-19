@@ -54,8 +54,8 @@ struct node_link {
     int input_slot;
     int output_id;
     int output_slot;
-    struct nk_vec2 in;
-    struct nk_vec2 out;
+    /*struct nk_vec2 in;*/
+    /*struct nk_vec2 out;*/
 };
 
 struct node_linking {
@@ -180,17 +180,56 @@ node_editor_link(struct node_editor *editor, int in_id, int in_slot,
 }
 
 static void
+node_editor_unlink_in(struct node_editor *editor, int in_id, int in_slot)
+{
+    struct node_link *link;
+    nk_bool move = nk_false;
+    for (int i=0; i<editor->link_count; i++) {
+        link = &editor->links[i];
+        if (!move && (link->input_id == in_id && link->input_slot == in_slot))
+            move = nk_true;
+
+        if (move) {
+            if (i < editor->link_count - 1)
+                editor->links[i] = editor->links[i+1];
+        }
+    }
+    editor->link_count--;
+}
+
+static void
+node_editor_unlink_out(struct node_editor *editor, int out_id, int out_slot)
+{
+    struct node_link *link;
+    nk_bool move = nk_false;
+    for (int i=0; i<editor->link_count; i++) {
+        link = &editor->links[i];
+        if (!move && (link->output_id == out_id && link->output_slot == out_slot))
+            move = nk_true;
+
+        if (move) {
+            if (i < editor->link_count - 1)
+                editor->links[i] = editor->links[i+1];
+        }
+    }
+    editor->link_count--;
+}
+
+static void
 node_editor_init(struct node_editor *editor)
 {
     memset(editor, 0, sizeof(*editor));
-    editor->begin = NULL;
-    editor->end = NULL;
-    node_editor_add_color(editor, "Source", nk_rect(40, 10, 180, 220), 0, 1, nk_rgb(255, 0, 0));
-    node_editor_add_color(editor, "Source", nk_rect(40, 260, 180, 220), 0, 1, nk_rgb(0, 255, 0));
-    node_editor_add_color(editor, "Combine", nk_rect(400, 100, 180, 220), 2, 2, nk_rgb(0,0,255));
-    node_editor_add_source_sound(editor, "Source", nk_rect(500, 200, 180, 220), 0, 2, "my_music.mp3");
-    node_editor_link(editor, 0, 0, 2, 0);
-    node_editor_link(editor, 1, 0, 2, 1);
+    /*node_editor_add_color(editor, "Source", nk_rect(40, 10, 180, 220), 0, 1, nk_rgb(255, 0, 0));*/
+    /*node_editor_add_color(editor, "Source", nk_rect(40, 260, 180, 220), 0, 1, nk_rgb(0, 255, 0));*/
+    /*node_editor_add_color(editor, "Combine", nk_rect(400, 100, 180, 220), 2, 2, nk_rgb(0,0,255));*/
+    node_editor_add_source_sound(editor, "Data Source 1", nk_rect(500, 200, 180, 220), 0, 1, "my_music.mp3");
+    node_editor_add_source_sound(editor, "Data Source 2", nk_rect(500, 200, 180, 220), 0, 1, "my_music.mp3");
+    node_editor_add_source_sound(editor, "Splitter", nk_rect(500, 200, 180, 220), 1, 2, "");
+    node_editor_add_source_sound(editor, "Low Pass Filter", nk_rect(500, 200, 180, 220), 1, 1, "");
+    node_editor_add_source_sound(editor, "Echo / Delay", nk_rect(500, 200, 180, 220), 1, 1, "");
+    node_editor_add_source_sound(editor, "End Point", nk_rect(500, 200, 180, 220), 1, 0, "");
+    /*node_editor_link(editor, 0, 0, 2, 0);*/
+    /*node_editor_link(editor, 1, 0, 2, 1);*/
     editor->show_grid = nk_true;
 }
 
@@ -286,7 +325,17 @@ node_editor(struct nk_context *ctx, int width, int height)
                         circle.x = node->bounds.x + node->bounds.w-4;
                         circle.y = node->bounds.y + space * (float)(n+1);
                         circle.w = 8; circle.h = 8;
-                        nk_fill_circle(canvas, circle, nk_rgb(100, 100, 100));
+                        struct nk_color cir_color = nk_rgb(100, 100, 100);
+                        if (nk_input_is_mouse_hovering_rect(in, circle) || 
+                            (nodedit->linking.active && nodedit->linking.node == it &&
+                            nodedit->linking.input_slot == n))
+                            cir_color = nk_rgb(100, 200, 100);
+                        nk_fill_circle(canvas, circle, cir_color);
+
+                        /* delete link */
+                        if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, circle, nk_true)) {
+                            node_editor_unlink_out(nodedit, it->ID, n);
+                        }
 
                         /* start linking process */
                         if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, circle, nk_true)) {
@@ -313,7 +362,17 @@ node_editor(struct nk_context *ctx, int width, int height)
                         circle.x = node->bounds.x-4;
                         circle.y = node->bounds.y + space * (float)(n+1);
                         circle.w = 8; circle.h = 8;
-                        nk_fill_circle(canvas, circle, nk_rgb(100, 100, 100));
+                        struct nk_color cir_color = nk_rgb(100, 100, 100);
+                        if (nk_input_is_mouse_hovering_rect(in, circle) && 
+                            nodedit->linking.active)
+                            cir_color = nk_rgb(100, 200, 100);
+                        nk_fill_circle(canvas, circle, cir_color);
+
+                        /* delete link */
+                        if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, circle, nk_true)) {
+                            node_editor_unlink_in(nodedit, it->ID, n);
+                        }
+
                         if (nk_input_is_mouse_released(in, NK_BUTTON_LEFT) &&
                             nk_input_is_mouse_hovering_rect(in, circle) &&
                             nodedit->linking.active && nodedit->linking.node != it) {
@@ -378,6 +437,9 @@ node_editor(struct nk_context *ctx, int width, int height)
             if (nk_contextual_begin(ctx, 0, nk_vec2(100, 220), nk_window_get_bounds(ctx))) {
                 const char *grid_option[] = {"Show Grid", "Hide Grid"};
                 nk_layout_row_dynamic(ctx, 25, 1);
+                if (nk_contextual_item_label(ctx, "New Sound", NK_TEXT_CENTERED))
+                    node_editor_add_source_sound(nodedit, "Souce Sound", nk_rect(400, 260, 180, 220),
+                             1, 2, "drwav.mp3");
                 if (nk_contextual_item_label(ctx, "New", NK_TEXT_CENTERED))
                     node_editor_add_color(nodedit, "New", nk_rect(400, 260, 180, 220),
                              1, 2, nk_rgb(255, 255, 255));
