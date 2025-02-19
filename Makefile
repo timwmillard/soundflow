@@ -93,16 +93,10 @@ endif
 
 all: $(TARGET)$(OUTEXT)
 
-$(TARGET)$(OUTEXT): src/main.c sokol.o miniaudio.o src/shader_glsl.h src/node_editor.c
-	$(CC) -o $@ $< sokol.o miniaudio.o $(INCS) $(DEFS) $(CFLAGS) $(LIBS)
+$(TARGET)$(OUTEXT): src/main.c deps.o src/shader_glsl.h src/node_editor.c
+	$(CC) -o $@ $< deps.o $(INCS) $(DEFS) $(CFLAGS) $(LIBS)
 
-sokol.o: src/sokol.c
-	$(CC) -c $< $(INCS) $(DEFS) $(CFLAGS)
-
-stb.o: src/stb.c
-	$(CC) -c $< $(INCS) $(DEFS) $(CFLAGS)
-
-miniaudio.o: src/miniaudio.c
+deps.o: src/deps.c
 	$(CC) -c $< $(INCS) $(DEFS) $(CFLAGS)
 
 run: $(TARGET)$(OUTEXT)

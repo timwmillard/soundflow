@@ -18,3 +18,6 @@
 #include "nuklear.h"
 #include "sokol_nuklear.h"
 
+#define MINIAUDIO_IMPLEMENTATION
+#include "miniaudio.h"
+
