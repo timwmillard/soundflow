@@ -19,12 +19,14 @@
 #define WINDOW_WIDTH  1600
 #define WINDOW_HEIGHT 1200
 
-/*static struct {*/
-/*    sg_pipeline pip;*/
-/*    sg_bindings bind;*/
-/*    sg_pass_action pass_action;*/
-/*    sg_buffer vbuf;*/
-/*} state;*/
+static struct {
+    /*sg_pipeline pip;*/
+    /*sg_bindings bind;*/
+    /*sg_pass_action pass_action;*/
+    /*sg_buffer vbuf;*/
+    ma_device audio_device;
+    ma_waveform sine_wave;
+} state;
 
 
 
@@ -89,15 +91,14 @@ void playback_beep(ma_device *pDevice, void *pOutput, const void *pInput, ma_uin
     ma_waveform_read_pcm_frames(sine_wave, pOutput, frameCount, &framesRead);
 }
 
-void init_audio(void)
+void audio_init(void)
 {
     printf("init audio subsystem\n");
     ma_result result;
 
     // Sine wave generator
-    ma_waveform sine_wave;
     ma_waveform_config sine_config = ma_waveform_config_init(ma_format_s16, 2, 44100, ma_waveform_type_sine, 0.8, 440);
-    ma_waveform_init(&sine_config, &sine_wave);
+    ma_waveform_init(&sine_config, &state.sine_wave);
 
     // Setup Miniaudio
     ma_device_config config = ma_device_config_init(ma_device_type_playback);
@@ -105,40 +106,30 @@ void init_audio(void)
     config.playback.channels = sine_config.channels;
     config.sampleRate = sine_config.sampleRate;
     config.dataCallback = playback_beep;
-    config.pUserData = &sine_wave;
+    config.pUserData = &state.sine_wave;
 
-    ma_device device;
-    result = ma_device_init(NULL, &config, &device);
+    result = ma_device_init(NULL, &config, &state.audio_device);
     if (result != MA_SUCCESS) {
         fprintf(stderr, "Error: failed to initalise device, error code = %d\n", result);
         exit(1);
     }
 
-    result = ma_device_start(&device);
+    result = ma_device_start(&state.audio_device);
     if (result != MA_SUCCESS) {
+        // Handle error
+        ma_device_uninit(&state.audio_device);
         fprintf(stderr, "Error: failed to start device, error code = %d\n", result);
         exit(1);
     }
-
-    getchar();
 }
 
-void *audio_thread(void *data)
+void audio_shutdown(void)
 {
-    (void)data;
-    printf("init audio thread\n");
-    init_audio();
-    return NULL;
+    ma_device_uninit(&state.audio_device);
 }
-
 
 void init(void)
 {
-    pthread_t th;
-    if (pthread_create(&th, NULL, audio_thread, NULL)) {
-        fprintf(stderr, "Error: init audio thread\n");
-        exit(1);
-    }
     sg_setup(&(sg_desc){
         .environment = sglue_environment(),
         .logger.func = slog_func,
@@ -150,8 +141,7 @@ void init(void)
         .logger.func = slog_func,
     });
 
-
-    /*init_audio();*/
+    audio_init();
 }
 
 void cleanup(void)
@@ -159,7 +149,7 @@ void cleanup(void)
     snk_shutdown();
     sg_shutdown();
 
-    /*ma_device_uninit(&device);*/
+    audio_shutdown();
 }
 
 sapp_desc sokol_main(int argc, char* argv[]) 
