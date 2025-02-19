@@ -93,7 +93,7 @@ endif
 
 all: $(TARGET)$(OUTEXT)
 
-$(TARGET)$(OUTEXT): src/main.c sokol.o src/shader_glsl.h
+$(TARGET)$(OUTEXT): src/main.c sokol.o src/shader_glsl.h src/node_editor.c
 	$(CC) -o $@ $< sokol.o $(INCS) $(DEFS) $(CFLAGS) $(LIBS)
 
 sokol.o: src/sokol.c

@@ -17,16 +17,36 @@
 #include <string.h>
 #include <math.h>
 
+
+enum node_tag {
+    NODE_COLOR,
+    NODE_SOURCE_SOUND,
+};
+
+struct node_color {
+    float value;
+    struct nk_color color;
+};
+
+struct node_source_sound {
+    char file_name[32];
+    int volume;
+};
+
 struct node {
+    enum node_tag tag;
     int ID;
     char name[32];
     struct nk_rect bounds;
-    float value;
-    struct nk_color color;
     int input_count;
     int output_count;
     struct node *next;
     struct node *prev;
+
+    union {
+        struct node_color color;
+        struct node_source_sound source_sound;
+    };
 };
 
 struct node_link {
@@ -105,24 +125,46 @@ node_editor_find(struct node_editor *editor, int ID)
     return NULL;
 }
 
-static void
+static struct node*
 node_editor_add(struct node_editor *editor, const char *name, struct nk_rect bounds,
-    struct nk_color col, int in_count, int out_count)
+     int in_count, int out_count)
 {
     static int IDs = 0;
     struct node *node;
     assert((nk_size)editor->node_count < NK_LEN(editor->node_buf));
     node = &editor->node_buf[editor->node_count++];
     node->ID = IDs++;
-    node->value = 0;
-    node->color = nk_rgb(255, 0, 0);
     node->input_count = in_count;
     node->output_count = out_count;
-    node->color = col;
     node->bounds = bounds;
     strcpy(node->name, name);
+
     node_editor_push(editor, node);
+    return node;
 }
+
+static void
+node_editor_add_color(struct node_editor *editor, const char *name, struct nk_rect bounds,
+    int in_count, int out_count,
+    struct nk_color col )
+{
+    struct node *node = node_editor_add(editor, name, bounds, in_count, out_count);
+    node->tag = NODE_COLOR;
+    node->color.value = 0;
+    node->color.color = col;
+}
+
+static void
+node_editor_add_source_sound(struct node_editor *editor, const char *name, struct nk_rect bounds,
+    int in_count, int out_count,
+    char *file_name )
+{
+    struct node *node = node_editor_add(editor, name, bounds, in_count, out_count);
+    node->tag = NODE_SOURCE_SOUND;
+    strcpy(node->source_sound.file_name, file_name);
+    node->source_sound.volume = 5;
+}
+
 
 static void
 node_editor_link(struct node_editor *editor, int in_id, int in_slot,
@@ -143,9 +185,10 @@ node_editor_init(struct node_editor *editor)
     memset(editor, 0, sizeof(*editor));
     editor->begin = NULL;
     editor->end = NULL;
-    node_editor_add(editor, "Source", nk_rect(40, 10, 180, 220), nk_rgb(255, 0, 0), 0, 1);
-    node_editor_add(editor, "Source", nk_rect(40, 260, 180, 220), nk_rgb(0, 255, 0), 0, 1);
-    node_editor_add(editor, "Combine", nk_rect(400, 100, 180, 220), nk_rgb(0,0,255), 2, 2);
+    node_editor_add_color(editor, "Source", nk_rect(40, 10, 180, 220), 0, 1, nk_rgb(255, 0, 0));
+    node_editor_add_color(editor, "Source", nk_rect(40, 260, 180, 220), 0, 1, nk_rgb(0, 255, 0));
+    node_editor_add_color(editor, "Combine", nk_rect(400, 100, 180, 220), 2, 2, nk_rgb(0,0,255));
+    node_editor_add_source_sound(editor, "Source", nk_rect(500, 200, 180, 220), 0, 2, "my_music.mp3");
     node_editor_link(editor, 0, 0, 2, 0);
     node_editor_link(editor, 1, 0, 2, 1);
     editor->show_grid = nk_true;
@@ -211,11 +254,19 @@ node_editor(struct nk_context *ctx, int width, int height)
 
                     /* ================= NODE CONTENT =====================*/
                     nk_layout_row_dynamic(ctx, 25, 1);
-                    nk_button_color(ctx, it->color);
-                    it->color.r = (nk_byte)nk_propertyi(ctx, "#R:", 0, it->color.r, 255, 1,1);
-                    it->color.g = (nk_byte)nk_propertyi(ctx, "#G:", 0, it->color.g, 255, 1,1);
-                    it->color.b = (nk_byte)nk_propertyi(ctx, "#B:", 0, it->color.b, 255, 1,1);
-                    it->color.a = (nk_byte)nk_propertyi(ctx, "#A:", 0, it->color.a, 255, 1,1);
+                    switch (it->tag) {
+                        case NODE_COLOR:
+                            nk_button_color(ctx, it->color.color);
+                            it->color.color.r = (nk_byte)nk_propertyi(ctx, "#R:", 0, it->color.color.r, 255, 1,1);
+                            it->color.color.g = (nk_byte)nk_propertyi(ctx, "#G:", 0, it->color.color.g, 255, 1,1);
+                            it->color.color.b = (nk_byte)nk_propertyi(ctx, "#B:", 0, it->color.color.b, 255, 1,1);
+                            it->color.color.a = (nk_byte)nk_propertyi(ctx, "#A:", 0, it->color.color.a, 255, 1,1);
+                            break;
+                        case NODE_SOURCE_SOUND:
+                            nk_label(ctx, it->source_sound.file_name, NK_TEXT_ALIGN_CENTERED);
+                            it->source_sound.volume = (nk_byte)nk_propertyi(ctx, "Volume", 0, it->source_sound.volume, 20, 1,1);
+                            break;
+                    }
                     /* ====================================================*/
                     nk_group_end(ctx);
                 }
@@ -328,8 +379,8 @@ node_editor(struct nk_context *ctx, int width, int height)
                 const char *grid_option[] = {"Show Grid", "Hide Grid"};
                 nk_layout_row_dynamic(ctx, 25, 1);
                 if (nk_contextual_item_label(ctx, "New", NK_TEXT_CENTERED))
-                    node_editor_add(nodedit, "New", nk_rect(400, 260, 180, 220),
-                            nk_rgb(255, 255, 255), 1, 2);
+                    node_editor_add_color(nodedit, "New", nk_rect(400, 260, 180, 220),
+                             1, 2, nk_rgb(255, 255, 255));
                 if (nk_contextual_item_label(ctx, grid_option[nodedit->show_grid],NK_TEXT_CENTERED))
                     nodedit->show_grid = !nodedit->show_grid;
                 nk_contextual_end(ctx);

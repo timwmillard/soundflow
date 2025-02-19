@@ -19,12 +19,12 @@
 #define WINDOW_WIDTH  1600
 #define WINDOW_HEIGHT 1200
 
-static struct {
-    sg_pipeline pip;
-    sg_bindings bind;
-    sg_pass_action pass_action;
-    sg_buffer vbuf;
-} state;
+/*static struct {*/
+/*    sg_pipeline pip;*/
+/*    sg_bindings bind;*/
+/*    sg_pass_action pass_action;*/
+/*    sg_buffer vbuf;*/
+/*} state;*/
 
 
 
@@ -63,7 +63,6 @@ void frame(void) {
 
 #pragma clang diagnostic ignored "-Wswitch"
 void input(const sapp_event* event) {
-    struct nk_context *ctx;
     snk_handle_event(event);
     switch(event->type) {
         case SAPP_EVENTTYPE_KEY_DOWN:
@@ -72,8 +71,6 @@ void input(const sapp_event* event) {
             }
             break;
         case SAPP_EVENTTYPE_RESIZED:
-            /*ctx = snk_new_frame();*/
-            /*draw_ui(ctx, sapp_width(), sapp_height());*/
             break;
     }
 }
