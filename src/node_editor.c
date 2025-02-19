@@ -179,6 +179,7 @@ node_editor_link(struct node_editor *editor, int in_id, int in_slot,
     link->output_slot = out_slot;
 }
 
+// TODO: this is broken
 static void
 node_editor_unlink_in(struct node_editor *editor, int in_id, int in_slot)
 {
@@ -197,6 +198,7 @@ node_editor_unlink_in(struct node_editor *editor, int in_id, int in_slot)
     editor->link_count--;
 }
 
+// TODO: this is broken
 static void
 node_editor_unlink_out(struct node_editor *editor, int out_id, int out_slot)
 {
