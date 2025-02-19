@@ -11,9 +11,13 @@
 
 #include "shader_glsl.h"
 
+#include "node_editor.c"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+
+#define WINDOW_WIDTH  1600
+#define WINDOW_HEIGHT 1200
 
 static struct {
     sg_pipeline pip;
@@ -24,27 +28,52 @@ static struct {
 
 
 
-void update(float dt) {
+void update(double dt) {
     (void)dt;
 }
 
-void frame(void) {
+void draw_ui(struct nk_context *ctx, int width, int height) {
+    node_editor(ctx, width, height);
+}
 
-    const float delta_time = (float)sapp_frame_duration();
-    const float w = sapp_widthf();
-    const float h = sapp_heightf();
+void frame(void) {
+    const double delta_time = sapp_frame_duration();
+    const int width = sapp_width();
+    const int height = sapp_height();
 
     update(delta_time);
 
+    struct nk_context *ctx = snk_new_frame();
+    draw_ui(ctx, width, height);
+
+
+    // the sokol_gfx draw pass
+    sg_begin_pass(&(sg_pass){
+        .action = {
+            .colors[0] = {
+                .load_action = SG_LOADACTION_CLEAR, .clear_value = { 0.25f, 0.5f, 0.7f, 1.0f }
+            }
+        },
+        .swapchain = sglue_swapchain()
+    });
+    snk_render(width, height);
+    sg_end_pass();
+    sg_commit();
 }
 
 #pragma clang diagnostic ignored "-Wswitch"
 void input(const sapp_event* event) {
+    struct nk_context *ctx;
+    snk_handle_event(event);
     switch(event->type) {
         case SAPP_EVENTTYPE_KEY_DOWN:
             if (event->key_code == SAPP_KEYCODE_ESCAPE) {
                 sapp_request_quit();
             }
+            break;
+        case SAPP_EVENTTYPE_RESIZED:
+            /*ctx = snk_new_frame();*/
+            /*draw_ui(ctx, sapp_width(), sapp_height());*/
             break;
     }
 }
@@ -72,8 +101,8 @@ sapp_desc sokol_main(int argc, char* argv[]) {
     (void)argc;
     (void)argv;
     return (sapp_desc) {
-        .width = 640,
-        .height = 480,
+        .width = WINDOW_WIDTH,
+        .height = WINDOW_HEIGHT,
         .init_cb = init,
         .frame_cb = frame,
         .event_cb = input,
