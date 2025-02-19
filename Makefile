@@ -93,10 +93,16 @@ endif
 
 all: $(TARGET)$(OUTEXT)
 
-$(TARGET)$(OUTEXT): src/main.c sokol.o src/shader_glsl.h src/node_editor.c
-	$(CC) -o $@ $< sokol.o $(INCS) $(DEFS) $(CFLAGS) $(LIBS)
+$(TARGET)$(OUTEXT): src/main.c sokol.o miniaudio.o src/shader_glsl.h src/node_editor.c
+	$(CC) -o $@ $< sokol.o miniaudio.o $(INCS) $(DEFS) $(CFLAGS) $(LIBS)
 
 sokol.o: src/sokol.c
+	$(CC) -c $< $(INCS) $(DEFS) $(CFLAGS)
+
+stb.o: src/stb.c
+	$(CC) -c $< $(INCS) $(DEFS) $(CFLAGS)
+
+miniaudio.o: src/miniaudio.c
 	$(CC) -c $< $(INCS) $(DEFS) $(CFLAGS)
 
 run: $(TARGET)$(OUTEXT)
@@ -117,6 +123,7 @@ update-deps:
 	wget -O include/stb_image.h https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
 	wget -O include/sokol_nuklear.h https://github.com/floooh/sokol/raw/refs/heads/master/util/sokol_nuklear.h
 	wget -O include/nuklear.h https://github.com/Immediate-Mode-UI/Nuklear/raw/refs/heads/master/nuklear.h
+	wget -O include/miniaudio.h https://raw.githubusercontent.com/mackron/miniaudio/refs/heads/master/miniaudio.h
 
 
 debug:

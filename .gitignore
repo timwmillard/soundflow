@@ -4,6 +4,8 @@
 /soundflow
 /soundflow.dSYM
 /sokol.o
+/stb.o
+/miniaudio.o
 
 /soundflow.html
 /soundflow.js
