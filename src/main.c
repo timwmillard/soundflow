@@ -25,6 +25,7 @@ static struct {
     /*sg_pass_action pass_action;*/
     /*sg_buffer vbuf;*/
     ma_device audio_device;
+    ma_node_graph node_graph;
     ma_waveform sine_wave;
 } state;
 
@@ -81,32 +82,57 @@ void input(const sapp_event* event)
     }
 }
 
-void playback_beep(ma_device *pDevice, void *pOutput, const void *pInput, ma_uint32 frameCount)
+#define CHANNELS 2
+#define FORMAT ma_format_f32
+#define SAMPLE_RATE 48000
+
+void playback(ma_device *pDevice, void *pOutput, const void *pInput, ma_uint32 frameCount)
 {
     (void)pInput;
-    ma_waveform *sine_wave = pDevice->pUserData;
-    assert(sine_wave != NULL);
+    assert(pDevice->playback.channels == CHANNELS);
 
-    ma_uint64 framesRead;
-    ma_waveform_read_pcm_frames(sine_wave, pOutput, frameCount, &framesRead);
+    ma_node_graph_read_pcm_frames(&state.node_graph, pOutput, frameCount, NULL);
 }
 
 void audio_init(void)
 {
-    printf("init audio subsystem\n");
     ma_result result;
 
-    // Sine wave generator
-    ma_waveform_config sine_config = ma_waveform_config_init(ma_format_s16, 2, 44100, ma_waveform_type_sine, 0.8, 440);
-    ma_waveform_init(&sine_config, &state.sine_wave);
+    ma_node_graph_config node_graph_config = ma_node_graph_config_init(CHANNELS);
+    result = ma_node_graph_init(&node_graph_config, NULL, &state.node_graph);
+    if (result != MA_SUCCESS) {
+        fprintf(stderr, "Error: failed to init node graph, error code = %d\n", result);
+        exit(1);
+    }
 
-    // Setup Miniaudio
+    // Decoder
+    ma_decoder decoder;
+    ma_decoder_config decoder_config = ma_decoder_config_init(FORMAT, CHANNELS, SAMPLE_RATE);
+    result = ma_decoder_init_file("sounds/jungle.wav", &decoder_config, &decoder);
+    if (result != MA_SUCCESS) {
+        fprintf(stderr, "Error: failed to initalise decoder, error code = %d\n", result);
+        exit(1);
+    }
+
+    // Device Setup
     ma_device_config config = ma_device_config_init(ma_device_type_playback);
-    config.playback.format = sine_config.format;
-    config.playback.channels = sine_config.channels;
-    config.sampleRate = sine_config.sampleRate;
-    config.dataCallback = playback_beep;
-    config.pUserData = &state.sine_wave;
+    config.playback.format = FORMAT;
+    config.playback.channels = CHANNELS;
+    config.sampleRate = SAMPLE_RATE;
+    config.dataCallback = playback;
+
+    // Data Source
+    ma_data_source_node source_node;
+    ma_data_source_node_config source_node_config = ma_data_source_node_config_init(&decoder);
+    result = ma_data_source_node_init(&state.node_graph, &source_node_config, NULL, &source_node);
+    if (result != MA_SUCCESS) {
+        fprintf(stderr, "Error: failed to initalise source node, error code = %d\n", result);
+        exit(1);
+    }
+
+    ma_node_attach_output_bus(&source_node, 0, NULL, 0);
+    /*MA_API ma_result ma_node_attach_output_bus(ma_node* pNode, ma_uint32 outputBusIndex, ma_node* pOtherNode, ma_uint32 otherNodeInputBusIndex)*/
+    /*ma_node_attach_output_bus(&g_pSoundNodes[g_soundNodeCount].node, 0, &g_splitterNode, 0);*/
 
     result = ma_device_init(NULL, &config, &state.audio_device);
     if (result != MA_SUCCESS) {
@@ -121,6 +147,7 @@ void audio_init(void)
         fprintf(stderr, "Error: failed to start device, error code = %d\n", result);
         exit(1);
     }
+    printf("init audio subsystem\n");
 }
 
 void audio_shutdown(void)

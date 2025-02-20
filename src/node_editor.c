@@ -308,7 +308,7 @@ node_editor(struct nk_context *ctx, int width, int height)
                             break;
                         case NODE_SOURCE_SOUND:
                             nk_label(ctx, it->source_sound.file_name, NK_TEXT_ALIGN_CENTERED);
-                            nk_property_int(ctx, "#Volume", 0, &it->source_sound.volume, 20, 1,1);
+                            nk_property_int(ctx, "#Volume", 0, &it->source_sound.volume, 20, 1, 0.5);
                             break;
                     }
                     /* ====================================================*/
@@ -445,8 +445,8 @@ node_editor(struct nk_context *ctx, int width, int height)
                 if (nk_contextual_item_label(ctx, "New Sound", NK_TEXT_CENTERED))
                     node_editor_add_source_sound(nodedit, "Souce Sound", nk_rect(400, 260, 180, 220),
                              1, 2, "drwav.mp3");
-                if (nk_contextual_item_label(ctx, "New", NK_TEXT_CENTERED))
-                    node_editor_add_color(nodedit, "New", nk_rect(400, 260, 180, 220),
+                if (nk_contextual_item_label(ctx, "New Color", NK_TEXT_CENTERED))
+                    node_editor_add_color(nodedit, "Color", nk_rect(400, 260, 180, 220),
                              1, 2, nk_rgb(255, 255, 255));
                 if (nk_contextual_item_label(ctx, grid_option[nodedit->show_grid],NK_TEXT_CENTERED))
                     nodedit->show_grid = !nodedit->show_grid;
