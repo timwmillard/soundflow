@@ -221,17 +221,18 @@ static void
 node_editor_init(struct node_editor *editor)
 {
     memset(editor, 0, sizeof(*editor));
-    /*node_editor_add_color(editor, "Source", nk_rect(40, 10, 180, 220), 0, 1, nk_rgb(255, 0, 0));*/
-    /*node_editor_add_color(editor, "Source", nk_rect(40, 260, 180, 220), 0, 1, nk_rgb(0, 255, 0));*/
-    /*node_editor_add_color(editor, "Combine", nk_rect(400, 100, 180, 220), 2, 2, nk_rgb(0,0,255));*/
-    node_editor_add_source_sound(editor, "Data Source 1", nk_rect(500, 200, 180, 220), 0, 1, "my_music.mp3");
-    node_editor_add_source_sound(editor, "Data Source 2", nk_rect(500, 200, 180, 220), 0, 1, "my_music.mp3");
-    node_editor_add_source_sound(editor, "Splitter", nk_rect(500, 200, 180, 220), 1, 2, "");
-    node_editor_add_source_sound(editor, "Low Pass Filter", nk_rect(500, 200, 180, 220), 1, 1, "");
-    node_editor_add_source_sound(editor, "Echo / Delay", nk_rect(500, 200, 180, 220), 1, 1, "");
-    node_editor_add_source_sound(editor, "End Point", nk_rect(500, 200, 180, 220), 1, 0, "");
-    /*node_editor_link(editor, 0, 0, 2, 0);*/
-    /*node_editor_link(editor, 1, 0, 2, 1);*/
+    node_editor_add_source_sound(editor, "Data Source 1", nk_rect(40, 10, 180, 220), 0, 1, "my_music.mp3");
+    node_editor_add_source_sound(editor, "Data Source 2", nk_rect(40, 260, 180, 220), 0, 1, "my_music.mp3");
+    node_editor_add_source_sound(editor, "Splitter", nk_rect(300, 200, 180, 220), 1, 2, "");
+    node_editor_add_source_sound(editor, "Low Pass Filter", nk_rect(600, 100, 180, 220), 1, 1, "");
+    node_editor_add_source_sound(editor, "Echo / Delay", nk_rect(600, 400, 180, 220), 1, 1, "");
+    node_editor_add_source_sound(editor, "End Point", nk_rect(900, 200, 180, 220), 1, 0, "");
+    node_editor_link(editor, 0, 0, 2, 0);
+    node_editor_link(editor, 1, 0, 2, 0);
+    node_editor_link(editor, 2, 0, 3, 0);
+    node_editor_link(editor, 2, 1, 4, 0);
+    node_editor_link(editor, 3, 0, 5, 0);
+    node_editor_link(editor, 4, 0, 5, 0);
     editor->show_grid = nk_true;
 }
 
@@ -253,6 +254,8 @@ node_editor(struct nk_context *ctx, int width, int height)
     if (nk_begin(ctx, "NodeEdit", nk_rect(0, 0, width, height),
         NK_WINDOW_BORDER|NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_MOVABLE|NK_WINDOW_CLOSABLE))
     {
+        nk_button_label(ctx, "Play");
+
         /* allocate complete window space */
         canvas = nk_window_get_canvas(ctx);
         total_space = nk_window_get_content_region(ctx);
@@ -305,7 +308,7 @@ node_editor(struct nk_context *ctx, int width, int height)
                             break;
                         case NODE_SOURCE_SOUND:
                             nk_label(ctx, it->source_sound.file_name, NK_TEXT_ALIGN_CENTERED);
-                            it->source_sound.volume = (nk_byte)nk_propertyi(ctx, "Volume", 0, it->source_sound.volume, 20, 1,1);
+                            it->source_sound.volume = (nk_byte)nk_propertyi(ctx, "#Volume", 0, it->source_sound.volume, 20, 1,1);
                             break;
                     }
                     /* ====================================================*/
