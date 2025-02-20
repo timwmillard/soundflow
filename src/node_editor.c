@@ -308,7 +308,7 @@ node_editor(struct nk_context *ctx, int width, int height)
                             break;
                         case NODE_SOURCE_SOUND:
                             nk_label(ctx, it->source_sound.file_name, NK_TEXT_ALIGN_CENTERED);
-                            it->source_sound.volume = (nk_byte)nk_propertyi(ctx, "#Volume", 0, it->source_sound.volume, 20, 1,1);
+                            nk_property_int(ctx, "#Volume", 0, &it->source_sound.volume, 20, 1,1);
                             break;
                     }
                     /* ====================================================*/
