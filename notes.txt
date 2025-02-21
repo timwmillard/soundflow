@@ -1,5 +1,10 @@
+# Notes
+
 
 MIDI support:
 https://github.com/atsushieno/cmidi2
 https://github.com/blastbay/blastmidi
+
+Open File dialog support:
+https://github.com/mlabbe/nativefiledialog
 
