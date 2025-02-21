@@ -118,7 +118,7 @@ update-deps:
 	wget -O include/sokol_nuklear.h https://github.com/floooh/sokol/raw/refs/heads/master/util/sokol_nuklear.h
 	wget -O include/nuklear.h https://github.com/Immediate-Mode-UI/Nuklear/raw/refs/heads/master/nuklear.h
 	wget -O include/miniaudio.h https://raw.githubusercontent.com/mackron/miniaudio/refs/heads/master/miniaudio.h
-
+	wget -O include/rfft.h https://raw.githubusercontent.com/grego/rfft.h/refs/heads/master/rfft.h
 
 debug:
 	@echo $(SHADERS_H)

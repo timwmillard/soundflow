@@ -8,3 +8,6 @@ https://github.com/blastbay/blastmidi
 Open File dialog support:
 https://github.com/mlabbe/nativefiledialog
 
+Fast Fourier Transform
+https://github.com/grego/rfft.h
+
