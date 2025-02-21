@@ -26,15 +26,23 @@
 
 static struct {
     ma_device device;
-    ma_node_graph node_graph;
-    ma_waveform sine_wave;
-    ma_decoder decoder;
-    ma_data_source_node source_node;
 } audio_state;
 
 enum node_tag {
     NODE_COLOR,
     NODE_SOURCE_SOUND,
+    NODE_ENDPOINT,
+    NODE_SOURCE_DECODER,
+};
+
+struct node_endpoint {
+    ma_node *endpoint;
+};
+
+struct node_source_decoder {
+    ma_decoder decoder;
+    ma_data_source_node source;
+    char file_name[32];
 };
 
 struct node_color {
@@ -57,9 +65,13 @@ struct node {
     struct node *next;
     struct node *prev;
 
+    ma_node *audio_node;
+
     union {
         struct node_color color;
         struct node_source_sound source_sound;
+        struct node_endpoint endpoint;
+        struct node_source_decoder source_decoder;
     };
 };
 
@@ -92,6 +104,7 @@ struct node_editor {
     int show_grid;
     struct nk_vec2 scrolling;
     struct node_linking linking;
+    ma_node_graph audio_graph;
 };
 static struct node_editor nodeEditor;
 
@@ -100,37 +113,37 @@ void playback(ma_device *pDevice, void *pOutput, const void *pInput, ma_uint32 f
     (void)pInput;
     assert(pDevice->playback.channels == CHANNELS);
 
-    ma_node_graph_read_pcm_frames(&audio_state.node_graph, pOutput, frameCount, NULL);
+    ma_node_graph_read_pcm_frames(&nodeEditor.audio_graph, pOutput, frameCount, NULL);
 }
 
 void audio_init(void)
 {
     ma_result result;
 
-    ma_node_graph_config node_graph_config = ma_node_graph_config_init(CHANNELS);
-    result = ma_node_graph_init(&node_graph_config, NULL, &audio_state.node_graph);
-    if (result != MA_SUCCESS) {
-        fprintf(stderr, "Error: failed to init node graph, error code = %d\n", result);
-        exit(1);
-    }
+    /*ma_node_graph_config node_graph_config = ma_node_graph_config_init(CHANNELS);*/
+    /*result = ma_node_graph_init(&node_graph_config, NULL, &audio_state.node_graph);*/
+    /*if (result != MA_SUCCESS) {*/
+    /*    fprintf(stderr, "Error: failed to init node graph, error code = %d\n", result);*/
+    /*    exit(1);*/
+    /*}*/
 
-    // Decoder
-    ma_decoder_config decoder_config = ma_decoder_config_init(FORMAT, CHANNELS, SAMPLE_RATE);
-    result = ma_decoder_init_file("sounds/jungle.mp3", &decoder_config, &audio_state.decoder);
-    if (result != MA_SUCCESS) {
-        fprintf(stderr, "Error: failed to initalise decoder, error code = %d\n", result);
-        exit(1);
-    }
+    /*// Decoder*/
+    /*ma_decoder_config decoder_config = ma_decoder_config_init(FORMAT, CHANNELS, SAMPLE_RATE);*/
+    /*result = ma_decoder_init_file("sounds/jungle.mp3", &decoder_config, &audio_state.decoder);*/
+    /*if (result != MA_SUCCESS) {*/
+    /*    fprintf(stderr, "Error: failed to initalise decoder, error code = %d\n", result);*/
+    /*    exit(1);*/
+    /*}*/
 
-    // Data Source
-    ma_data_source_node_config source_node_config = ma_data_source_node_config_init(&audio_state.decoder);
-    result = ma_data_source_node_init(&audio_state.node_graph, &source_node_config, NULL, &audio_state.source_node);
-    if (result != MA_SUCCESS) {
-        fprintf(stderr, "Error: failed to initalise source node, error code = %d\n", result);
-        exit(1);
-    }
+    /*// Data Source*/
+    /*ma_data_source_node_config source_node_config = ma_data_source_node_config_init(&audio_state.decoder);*/
+    /*result = ma_data_source_node_init(&audio_state.node_graph, &source_node_config, NULL, &audio_state.source_node);*/
+    /*if (result != MA_SUCCESS) {*/
+    /*    fprintf(stderr, "Error: failed to initalise source node, error code = %d\n", result);*/
+    /*    exit(1);*/
+    /*}*/
 
-    ma_node_attach_output_bus(&audio_state.source_node, 0, ma_node_graph_get_endpoint(&audio_state.node_graph), 0);
+    /*ma_node_attach_output_bus(&audio_state.source_node, 0, ma_node_graph_get_endpoint(&audio_state.node_graph), 0);*/
 
     // Device Setup
     ma_device_config config = ma_device_config_init(ma_device_type_playback);
@@ -216,9 +229,19 @@ node_editor_add(struct node_editor *editor, const char *name, struct nk_rect bou
     node->output_count = out_count;
     node->bounds = bounds;
     strcpy(node->name, name);
+    node->audio_node = NULL;
 
     node_editor_push(editor, node);
     return node;
+}
+
+static struct node* node_editor_node_by_id(struct node_editor *editor, const int id)
+{
+    for (int i=0; i<editor->node_count; i++) {
+        struct node node = editor->node_buf[i];
+        if (node.ID == id) return &editor->node_buf[i];
+    }
+    return NULL;
 }
 
 static void
@@ -243,6 +266,48 @@ node_editor_add_source_sound(struct node_editor *editor, const char *name, struc
     node->source_sound.volume = 5;
 }
 
+// Endpoint
+static void
+node_editor_add_endpoint(struct node_editor *editor, const char *name, struct nk_rect bounds,
+    int in_count, int out_count)
+{
+    struct node *node = node_editor_add(editor, name, bounds, in_count, out_count);
+    node->tag = NODE_ENDPOINT;
+
+    ma_node *endpoint = ma_node_graph_get_endpoint(&editor->audio_graph);
+    node->endpoint.endpoint = endpoint;
+    node->audio_node = endpoint;
+}
+
+// Source Decoder
+static void
+node_editor_add_source_decoder(struct node_editor *editor, const char *name, struct nk_rect bounds,
+    int in_count, int out_count)
+{
+    struct node *node = node_editor_add(editor, name, bounds, in_count, out_count);
+    node->tag = NODE_SOURCE_DECODER;
+
+    strcpy(node->source_decoder.file_name, "sounds/jungle.mp3");
+    ma_result result;
+
+    // Decoder
+    ma_decoder_config decoder_config = ma_decoder_config_init(FORMAT, CHANNELS, SAMPLE_RATE);
+    /*result = ma_decoder_init_file(node->source_decoder.file_name, &decoder_config, &node->source_decoder.decoder);*/
+    result = ma_decoder_init_file("sounds/jungle.mp3", &decoder_config, &node->source_decoder.decoder);
+    if (result != MA_SUCCESS) {
+        fprintf(stderr, "Error: failed to initalise decoder, error code = %d\n", result);
+        exit(1);
+    }
+
+    // Data Source
+    ma_data_source_node_config source_node_config = ma_data_source_node_config_init(&node->source_decoder.decoder);
+    result = ma_data_source_node_init(&editor->audio_graph, &source_node_config, NULL, &node->source_decoder.source);
+    if (result != MA_SUCCESS) {
+        fprintf(stderr, "Error: failed to initalise source node, error code = %d\n", result);
+        exit(1);
+    }
+    node->audio_node = &node->source_decoder.source;
+}
 
 static void
 node_editor_link(struct node_editor *editor, int in_id, int in_slot,
@@ -255,6 +320,19 @@ node_editor_link(struct node_editor *editor, int in_id, int in_slot,
     link->input_slot = in_slot;
     link->output_id = out_id;
     link->output_slot = out_slot;
+
+    // out -> in
+    struct node *out_node = node_editor_node_by_id(editor, out_id); 
+    struct node *in_node = node_editor_node_by_id(editor, in_id);
+    if (out_node == NULL || in_node == NULL 
+            || out_node->audio_node == NULL || in_node->audio_node == NULL)
+            return;
+
+    printf("[DEBUG] connecting nodes %d(%d) -> %d(%d)\n", out_node->ID, out_slot, in_node->ID, in_slot);
+    ma_result result = ma_node_attach_output_bus(in_node->audio_node, in_slot, out_node->audio_node, out_slot);
+    if (result != MA_SUCCESS) {
+        fprintf(stderr, "[ERROR]: failed to link nodes, error code = %d\n", result);
+    }
 }
 
 // TODO: this is broken
@@ -301,18 +379,31 @@ node_editor_init(struct node_editor *editor)
     audio_init();
 
     memset(editor, 0, sizeof(*editor));
-    node_editor_add_source_sound(editor, "Data Source 1", nk_rect(40, 10, 180, 220), 0, 1, "my_music.mp3");
-    node_editor_add_source_sound(editor, "Data Source 2", nk_rect(40, 260, 180, 220), 0, 1, "my_music.mp3");
-    node_editor_add_source_sound(editor, "Splitter", nk_rect(300, 200, 180, 220), 1, 2, "");
-    node_editor_add_source_sound(editor, "Low Pass Filter", nk_rect(600, 100, 180, 220), 1, 1, "");
-    node_editor_add_source_sound(editor, "Echo / Delay", nk_rect(600, 400, 180, 220), 1, 1, "");
-    node_editor_add_source_sound(editor, "End Point", nk_rect(900, 200, 180, 220), 1, 0, "");
-    node_editor_link(editor, 0, 0, 2, 0);
-    node_editor_link(editor, 1, 0, 2, 0);
-    node_editor_link(editor, 2, 0, 3, 0);
-    node_editor_link(editor, 2, 1, 4, 0);
-    node_editor_link(editor, 3, 0, 5, 0);
-    node_editor_link(editor, 4, 0, 5, 0);
+
+    ma_node_graph_config node_graph_config = ma_node_graph_config_init(CHANNELS);
+    ma_result result = ma_node_graph_init(&node_graph_config, NULL, &editor->audio_graph);
+    if (result != MA_SUCCESS) {
+        fprintf(stderr, "Error: failed to init node graph, error code = %d\n", result);
+        exit(1);
+    }
+
+    /*node_editor_add_source_sound(editor, "Data Source 1", nk_rect(40, 10, 180, 220), 0, 1, "my_music.mp3");*/
+    /*node_editor_add_source_sound(editor, "Data Source 2", nk_rect(40, 260, 180, 220), 0, 1, "my_music.mp3");*/
+    /*node_editor_add_source_sound(editor, "Splitter", nk_rect(300, 200, 180, 220), 1, 2, "");*/
+    /*node_editor_add_source_sound(editor, "Low Pass Filter", nk_rect(600, 100, 180, 220), 1, 1, "");*/
+    /*node_editor_add_source_sound(editor, "Echo / Delay", nk_rect(600, 400, 180, 220), 1, 1, "");*/
+    /*node_editor_add_source_sound(editor, "End Point", nk_rect(900, 200, 180, 220), 1, 0, "");*/
+    /*node_editor_link(editor, 0, 0, 2, 0);*/
+    /*node_editor_link(editor, 1, 0, 2, 0);*/
+    /*node_editor_link(editor, 2, 0, 3, 0);*/
+    /*node_editor_link(editor, 2, 1, 4, 0);*/
+    /*node_editor_link(editor, 3, 0, 5, 0);*/
+    /*node_editor_link(editor, 4, 0, 5, 0);*/
+
+    node_editor_add_source_decoder(editor, "Data Source 1", nk_rect(40, 10, 180, 220), 0, 1);
+    node_editor_add_endpoint(editor, "Endpoint", nk_rect(540, 10, 180, 220), 1, 0);
+    node_editor_link(editor, 0, 0, 1, 0);
+
     editor->show_grid = nk_true;
 }
 
@@ -395,6 +486,7 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
 
                     /* ================= NODE CONTENT =====================*/
                     nk_layout_row_dynamic(ctx, 25, 1);
+                    #pragma clang diagnostic ignored "-Wswitch"
                     switch (it->tag) {
                         case NODE_COLOR:
                             nk_button_color(ctx, it->color.color);
@@ -406,6 +498,12 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                         case NODE_SOURCE_SOUND:
                             nk_label(ctx, it->source_sound.file_name, NK_TEXT_ALIGN_CENTERED);
                             nk_property_int(ctx, "#Volume", 0, &it->source_sound.volume, 20, 1, 0.5);
+                            break;
+                        case NODE_ENDPOINT:
+                            nk_label(ctx, "Audio Device", NK_TEXT_ALIGN_CENTERED);
+                            break;
+                        case NODE_SOURCE_DECODER:
+                            nk_label(ctx, it->source_decoder.file_name, NK_TEXT_ALIGN_CENTERED);
                             break;
                     }
                     /* ====================================================*/
@@ -536,17 +634,23 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
             }
 
             /* contextual menu */
-            if (nk_contextual_begin(ctx, 0, nk_vec2(100, 220), nk_window_get_bounds(ctx))) {
+            if (nk_contextual_begin(ctx, 0, nk_vec2(140, 220), nk_window_get_bounds(ctx))) {
                 const char *grid_option[] = {"Show Grid", "Hide Grid"};
                 nk_layout_row_dynamic(ctx, 25, 1);
-                if (nk_contextual_item_label(ctx, "New Sound", NK_TEXT_CENTERED))
-                    node_editor_add_source_sound(nodedit, "Souce Sound", nk_rect(400, 260, 180, 220),
-                             1, 2, "drwav.mp3");
-                if (nk_contextual_item_label(ctx, "New Color", NK_TEXT_CENTERED))
-                    node_editor_add_color(nodedit, "Color", nk_rect(400, 260, 180, 220),
-                             1, 2, nk_rgb(255, 255, 255));
-                if (nk_contextual_item_label(ctx, grid_option[nodedit->show_grid],NK_TEXT_CENTERED))
-                    nodedit->show_grid = !nodedit->show_grid;
+                if (nk_contextual_item_label(ctx, "New Audio File", NK_TEXT_CENTERED))
+                    node_editor_add_source_decoder(nodedit, "Decoder", nk_rect(400, 260, 180, 220),
+                             0, 2);
+                if (nk_contextual_item_label(ctx, "New Endpoint", NK_TEXT_CENTERED))
+                    node_editor_add_endpoint(nodedit, "Endpoint", nk_rect(400, 260, 180, 220),
+                             1, 0);
+                /*if (nk_contextual_item_label(ctx, "New Sound", NK_TEXT_CENTERED))*/
+                /*    node_editor_add_source_sound(nodedit, "Souce Sound", nk_rect(400, 260, 180, 220),*/
+                /*             1, 2, "drwav.mp3");*/
+                /*if (nk_contextual_item_label(ctx, "New Color", NK_TEXT_CENTERED))*/
+                /*    node_editor_add_color(nodedit, "Color", nk_rect(400, 260, 180, 220),*/
+                /*             1, 2, nk_rgb(255, 255, 255));*/
+                /*if (nk_contextual_item_label(ctx, grid_option[nodedit->show_grid],NK_TEXT_CENTERED))*/
+                /*    nodedit->show_grid = !nodedit->show_grid;*/
                 nk_contextual_end(ctx);
             }
         }

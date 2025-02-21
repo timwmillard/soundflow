@@ -10,11 +10,9 @@
 #include "sokol_nuklear.h"
 
 #include "miniaudio.h"
+#include "stb_image.h"
 
 #include "node_editor.c"
-
-/*#define STB_IMAGE_IMPLEMENTATION*/
-#include "stb_image.h"
 
 #define WINDOW_WIDTH  1600
 #define WINDOW_HEIGHT 1200
