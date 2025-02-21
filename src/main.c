@@ -27,6 +27,8 @@ static struct {
     ma_device audio_device;
     ma_node_graph node_graph;
     ma_waveform sine_wave;
+    ma_decoder decoder;
+    ma_data_source_node source_node;
 } state;
 
 
@@ -106,13 +108,22 @@ void audio_init(void)
     }
 
     // Decoder
-    ma_decoder decoder;
     ma_decoder_config decoder_config = ma_decoder_config_init(FORMAT, CHANNELS, SAMPLE_RATE);
-    result = ma_decoder_init_file("sounds/jungle.wav", &decoder_config, &decoder);
+    result = ma_decoder_init_file("sounds/jungle.mp3", &decoder_config, &state.decoder);
     if (result != MA_SUCCESS) {
         fprintf(stderr, "Error: failed to initalise decoder, error code = %d\n", result);
         exit(1);
     }
+
+    // Data Source
+    ma_data_source_node_config source_node_config = ma_data_source_node_config_init(&state.decoder);
+    result = ma_data_source_node_init(&state.node_graph, &source_node_config, NULL, &state.source_node);
+    if (result != MA_SUCCESS) {
+        fprintf(stderr, "Error: failed to initalise source node, error code = %d\n", result);
+        exit(1);
+    }
+
+    ma_node_attach_output_bus(&state.source_node, 0, ma_node_graph_get_endpoint(&state.node_graph), 0);
 
     // Device Setup
     ma_device_config config = ma_device_config_init(ma_device_type_playback);
@@ -120,20 +131,6 @@ void audio_init(void)
     config.playback.channels = CHANNELS;
     config.sampleRate = SAMPLE_RATE;
     config.dataCallback = playback;
-
-    // Data Source
-    ma_data_source_node source_node;
-    ma_data_source_node_config source_node_config = ma_data_source_node_config_init(&decoder);
-    result = ma_data_source_node_init(&state.node_graph, &source_node_config, NULL, &source_node);
-    if (result != MA_SUCCESS) {
-        fprintf(stderr, "Error: failed to initalise source node, error code = %d\n", result);
-        exit(1);
-    }
-
-    ma_node_attach_output_bus(&source_node, 0, NULL, 0);
-    /*MA_API ma_result ma_node_attach_output_bus(ma_node* pNode, ma_uint32 outputBusIndex, ma_node* pOtherNode, ma_uint32 otherNodeInputBusIndex)*/
-    /*ma_node_attach_output_bus(&g_pSoundNodes[g_soundNodeCount].node, 0, &g_splitterNode, 0);*/
-
     result = ma_device_init(NULL, &config, &state.audio_device);
     if (result != MA_SUCCESS) {
         fprintf(stderr, "Error: failed to initalise device, error code = %d\n", result);
