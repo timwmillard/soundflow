@@ -407,6 +407,19 @@ node_editor_init(struct node_editor *editor)
     editor->show_grid = nk_true;
 }
 
+#include "file_dialog.c"
+
+static void file_dialog_button(struct nk_context *ctx, char *label) {
+    if (nk_button_label(ctx, label)) {
+        FileDialogResult result = open_file_dialog("Choose a file", NULL);
+        if (result.success) {
+            // Do something with result.path
+            printf("Selected file: %s\n", result.path);
+            free_file_dialog_result(&result);
+        }
+    }
+}
+
 static void play_controls(struct nk_context *ctx, struct nk_rect bounds)
 {
     float value;
@@ -422,6 +435,7 @@ static void play_controls(struct nk_context *ctx, struct nk_rect bounds)
         if (nk_button_label(ctx, "Stop")) {
             ma_device_stop(&audio_state.device);
         }
+        file_dialog_button(ctx, "Open File");
     }
     nk_end(ctx);
 }
