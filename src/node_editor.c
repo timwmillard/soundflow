@@ -11,12 +11,26 @@
  * moment since it is based on a simple fixed array. If this is to be converted
  * into something more serious it is probably best to extend it.*/
 
-#include "nuklear.h"
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
 #include <math.h>
+#include <stdlib.h>
 
+#include "nuklear.h"
+#include "miniaudio.h"
+
+#define CHANNELS 2
+#define FORMAT ma_format_f32
+#define SAMPLE_RATE 48000
+
+static struct {
+    ma_device device;
+    ma_node_graph node_graph;
+    ma_waveform sine_wave;
+    ma_decoder decoder;
+    ma_data_source_node source_node;
+} audio_state;
 
 enum node_tag {
     NODE_COLOR,
@@ -80,6 +94,70 @@ struct node_editor {
     struct node_linking linking;
 };
 static struct node_editor nodeEditor;
+
+void playback(ma_device *pDevice, void *pOutput, const void *pInput, ma_uint32 frameCount)
+{
+    (void)pInput;
+    assert(pDevice->playback.channels == CHANNELS);
+
+    ma_node_graph_read_pcm_frames(&audio_state.node_graph, pOutput, frameCount, NULL);
+}
+
+void audio_init(void)
+{
+    ma_result result;
+
+    ma_node_graph_config node_graph_config = ma_node_graph_config_init(CHANNELS);
+    result = ma_node_graph_init(&node_graph_config, NULL, &audio_state.node_graph);
+    if (result != MA_SUCCESS) {
+        fprintf(stderr, "Error: failed to init node graph, error code = %d\n", result);
+        exit(1);
+    }
+
+    // Decoder
+    ma_decoder_config decoder_config = ma_decoder_config_init(FORMAT, CHANNELS, SAMPLE_RATE);
+    result = ma_decoder_init_file("sounds/jungle.mp3", &decoder_config, &audio_state.decoder);
+    if (result != MA_SUCCESS) {
+        fprintf(stderr, "Error: failed to initalise decoder, error code = %d\n", result);
+        exit(1);
+    }
+
+    // Data Source
+    ma_data_source_node_config source_node_config = ma_data_source_node_config_init(&audio_state.decoder);
+    result = ma_data_source_node_init(&audio_state.node_graph, &source_node_config, NULL, &audio_state.source_node);
+    if (result != MA_SUCCESS) {
+        fprintf(stderr, "Error: failed to initalise source node, error code = %d\n", result);
+        exit(1);
+    }
+
+    ma_node_attach_output_bus(&audio_state.source_node, 0, ma_node_graph_get_endpoint(&audio_state.node_graph), 0);
+
+    // Device Setup
+    ma_device_config config = ma_device_config_init(ma_device_type_playback);
+    config.playback.format = FORMAT;
+    config.playback.channels = CHANNELS;
+    config.sampleRate = SAMPLE_RATE;
+    config.dataCallback = playback;
+    result = ma_device_init(NULL, &config, &audio_state.device);
+    if (result != MA_SUCCESS) {
+        fprintf(stderr, "Error: failed to initalise device, error code = %d\n", result);
+        exit(1);
+    }
+
+    result = ma_device_start(&audio_state.device);
+    if (result != MA_SUCCESS) {
+        // Handle error
+        ma_device_uninit(&audio_state.device);
+        fprintf(stderr, "Error: failed to start device, error code = %d\n", result);
+        exit(1);
+    }
+    printf("init audio subsystem\n");
+}
+
+void audio_shutdown(void)
+{
+    ma_device_uninit(&audio_state.device);
+}
 
 static void
 node_editor_push(struct node_editor *editor, struct node *node)
@@ -220,6 +298,8 @@ node_editor_unlink_out(struct node_editor *editor, int out_id, int out_slot)
 static void
 node_editor_init(struct node_editor *editor)
 {
+    audio_init();
+
     memset(editor, 0, sizeof(*editor));
     node_editor_add_source_sound(editor, "Data Source 1", nk_rect(40, 10, 180, 220), 0, 1, "my_music.mp3");
     node_editor_add_source_sound(editor, "Data Source 2", nk_rect(40, 260, 180, 220), 0, 1, "my_music.mp3");
@@ -236,8 +316,27 @@ node_editor_init(struct node_editor *editor)
     editor->show_grid = nk_true;
 }
 
-static int
-node_editor(struct nk_context *ctx, int width, int height)
+static void play_controls(struct nk_context *ctx, struct nk_rect bounds)
+{
+    float value;
+    int op = 1;
+
+    if (nk_begin(ctx, "Controls", bounds,
+                NK_WINDOW_BORDER|NK_WINDOW_NO_SCROLLBAR)) {
+        nk_layout_row_dynamic(ctx, 30, 20);
+        nk_spacing(ctx, 6);
+        if (nk_button_label(ctx, "Play")) {
+            ma_device_start(&audio_state.device);
+        }
+        if (nk_button_label(ctx, "Stop")) {
+            ma_device_stop(&audio_state.device);
+        }
+    }
+    nk_end(ctx);
+}
+
+
+static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
 {
     int n = 0;
     struct nk_rect total_space;
@@ -251,10 +350,8 @@ node_editor(struct nk_context *ctx, int width, int height)
         nodeEditor.initialized = 1;
     }
 
-    if (nk_begin(ctx, "NodeEdit", nk_rect(0, 0, width, height),
-        NK_WINDOW_BORDER|NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_MOVABLE|NK_WINDOW_CLOSABLE))
-    {
-        nk_button_label(ctx, "Play");
+    if (nk_begin(ctx, "Node Editor", bounds,
+        NK_WINDOW_BORDER|NK_WINDOW_NO_SCROLLBAR)) {
 
         /* allocate complete window space */
         canvas = nk_window_get_canvas(ctx);

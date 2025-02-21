@@ -24,11 +24,6 @@ static struct {
     /*sg_bindings bind;*/
     /*sg_pass_action pass_action;*/
     /*sg_buffer vbuf;*/
-    ma_device audio_device;
-    ma_node_graph node_graph;
-    ma_waveform sine_wave;
-    ma_decoder decoder;
-    ma_data_source_node source_node;
 } state;
 
 
@@ -40,7 +35,9 @@ void update(double dt)
 
 void draw_ui(struct nk_context *ctx, int width, int height) 
 {
-    node_editor(ctx, width, height);
+    const int play_height = 45;
+    play_controls(ctx, nk_rect(0, 0, width, play_height));
+    node_editor(ctx, nk_rect(0, play_height, width, height - play_height));
 }
 
 void frame(void) 
@@ -84,74 +81,6 @@ void input(const sapp_event* event)
     }
 }
 
-#define CHANNELS 2
-#define FORMAT ma_format_f32
-#define SAMPLE_RATE 48000
-
-void playback(ma_device *pDevice, void *pOutput, const void *pInput, ma_uint32 frameCount)
-{
-    (void)pInput;
-    assert(pDevice->playback.channels == CHANNELS);
-
-    ma_node_graph_read_pcm_frames(&state.node_graph, pOutput, frameCount, NULL);
-}
-
-void audio_init(void)
-{
-    ma_result result;
-
-    ma_node_graph_config node_graph_config = ma_node_graph_config_init(CHANNELS);
-    result = ma_node_graph_init(&node_graph_config, NULL, &state.node_graph);
-    if (result != MA_SUCCESS) {
-        fprintf(stderr, "Error: failed to init node graph, error code = %d\n", result);
-        exit(1);
-    }
-
-    // Decoder
-    ma_decoder_config decoder_config = ma_decoder_config_init(FORMAT, CHANNELS, SAMPLE_RATE);
-    result = ma_decoder_init_file("sounds/jungle.mp3", &decoder_config, &state.decoder);
-    if (result != MA_SUCCESS) {
-        fprintf(stderr, "Error: failed to initalise decoder, error code = %d\n", result);
-        exit(1);
-    }
-
-    // Data Source
-    ma_data_source_node_config source_node_config = ma_data_source_node_config_init(&state.decoder);
-    result = ma_data_source_node_init(&state.node_graph, &source_node_config, NULL, &state.source_node);
-    if (result != MA_SUCCESS) {
-        fprintf(stderr, "Error: failed to initalise source node, error code = %d\n", result);
-        exit(1);
-    }
-
-    ma_node_attach_output_bus(&state.source_node, 0, ma_node_graph_get_endpoint(&state.node_graph), 0);
-
-    // Device Setup
-    ma_device_config config = ma_device_config_init(ma_device_type_playback);
-    config.playback.format = FORMAT;
-    config.playback.channels = CHANNELS;
-    config.sampleRate = SAMPLE_RATE;
-    config.dataCallback = playback;
-    result = ma_device_init(NULL, &config, &state.audio_device);
-    if (result != MA_SUCCESS) {
-        fprintf(stderr, "Error: failed to initalise device, error code = %d\n", result);
-        exit(1);
-    }
-
-    result = ma_device_start(&state.audio_device);
-    if (result != MA_SUCCESS) {
-        // Handle error
-        ma_device_uninit(&state.audio_device);
-        fprintf(stderr, "Error: failed to start device, error code = %d\n", result);
-        exit(1);
-    }
-    printf("init audio subsystem\n");
-}
-
-void audio_shutdown(void)
-{
-    ma_device_uninit(&state.audio_device);
-}
-
 void init(void)
 {
     sg_setup(&(sg_desc){
@@ -165,7 +94,7 @@ void init(void)
         .logger.func = slog_func,
     });
 
-    audio_init();
+    /*audio_init();*/
 }
 
 void cleanup(void)
