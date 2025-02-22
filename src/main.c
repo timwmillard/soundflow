@@ -12,19 +12,10 @@
 #include "miniaudio.h"
 #include "stb_image.h"
 
-#include "node_editor.c"
+#include "gui.c"
 
 #define WINDOW_WIDTH  1600
 #define WINDOW_HEIGHT 1200
-
-static struct {
-    /*sg_pipeline pip;*/
-    /*sg_bindings bind;*/
-    /*sg_pass_action pass_action;*/
-    /*sg_buffer vbuf;*/
-} state;
-
-
 
 void update(double dt) 
 {
