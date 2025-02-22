@@ -16,9 +16,12 @@
 #include <string.h>
 #include <math.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "nuklear.h"
 #include "miniaudio.h"
+
+#include "file_dialog.c"
 
 #define CHANNELS 2
 #define FORMAT ma_format_f32
@@ -284,10 +287,23 @@ static void
 node_editor_add_source_decoder(struct node_editor *editor, const char *name, struct nk_rect bounds,
     int in_count, int out_count, char *file_name)
 {
+
     struct node *node = node_editor_add(editor, name, bounds, in_count, out_count);
     node->tag = NODE_SOURCE_DECODER;
 
-    strcpy(node->source_decoder.file_name, file_name);
+    if (file_name == NULL) {
+        FileDialogResult file_result = open_file_dialog("Choose a file", NULL);
+        if (file_result.success) {
+            strcpy(node->source_decoder.file_name, file_result.path);
+            free_file_dialog_result(&file_result);
+        } else {
+            fprintf(stderr, "Error: failed load file\n");
+            return;
+        }
+    } else {
+        strcpy(node->source_decoder.file_name, file_name);
+    }
+
     ma_result result;
 
     // Decoder
@@ -447,19 +463,6 @@ node_editor_init(struct node_editor *editor)
         exit(1);
     }
 
-    /*node_editor_add_source_sound(editor, "Data Source 1", nk_rect(40, 10, 180, 220), 0, 1, "my_music.mp3");*/
-    /*node_editor_add_source_sound(editor, "Data Source 2", nk_rect(40, 260, 180, 220), 0, 1, "my_music.mp3");*/
-    /*node_editor_add_source_sound(editor, "Splitter", nk_rect(300, 200, 180, 220), 1, 2, "");*/
-    /*node_editor_add_source_sound(editor, "Low Pass Filter", nk_rect(600, 100, 180, 220), 1, 1, "");*/
-    /*node_editor_add_source_sound(editor, "Echo / Delay", nk_rect(600, 400, 180, 220), 1, 1, "");*/
-    /*node_editor_add_source_sound(editor, "End Point", nk_rect(900, 200, 180, 220), 1, 0, "");*/
-    /*node_editor_link(editor, 0, 0, 2, 0);*/
-    /*node_editor_link(editor, 1, 0, 2, 0);*/
-    /*node_editor_link(editor, 2, 0, 3, 0);*/
-    /*node_editor_link(editor, 2, 1, 4, 0);*/
-    /*node_editor_link(editor, 3, 0, 5, 0);*/
-    /*node_editor_link(editor, 4, 0, 5, 0);*/
-
     node_editor_add_source_decoder(editor, "Data Source 1", nk_rect(40, 10, 180, 220), 0, 1, "sounds/jungle.mp3");
     node_editor_add_endpoint(editor, "Endpoint", nk_rect(540, 10, 180, 220), 1, 0);
     /*node_editor_link(editor, 0, 0, 1, 0);*/
@@ -467,14 +470,12 @@ node_editor_init(struct node_editor *editor)
     editor->show_grid = nk_true;
 }
 
-#include "file_dialog.c"
 
-static void file_dialog_button(struct nk_context *ctx, char *label) {
+static void file_dialog_button(struct nk_context *ctx, char *label, char *result_path) {
     if (nk_button_label(ctx, label)) {
         FileDialogResult result = open_file_dialog("Choose a file", NULL);
         if (result.success) {
-            // Do something with result.path
-            printf("Selected file: %s\n", result.path);
+            strcpy(result_path, result.path);
             free_file_dialog_result(&result);
         }
     }
@@ -495,7 +496,6 @@ static void play_controls(struct nk_context *ctx, struct nk_rect bounds)
         if (nk_button_label(ctx, "Stop")) {
             ma_device_stop(&audio_state.device);
         }
-        file_dialog_button(ctx, "Open File");
     }
     nk_end(ctx);
 }
@@ -720,15 +720,12 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
             if (nk_contextual_begin(ctx, 0, nk_vec2(150, 220), nk_window_get_bounds(ctx))) {
                 const char *grid_option[] = {"Show Grid", "Hide Grid"};
                 nk_layout_row_dynamic(ctx, 25, 1);
+                if (nk_contextual_item_label(ctx, "New Audio File", NK_TEXT_CENTERED))
+                    node_editor_add_source_decoder(nodedit, "Decoder", nk_rect(mouse.x, mouse.y, 180, 220),
+                             0, 1, NULL);
                 if (nk_contextual_item_label(ctx, "New Audio Jungle", NK_TEXT_CENTERED))
                     node_editor_add_source_decoder(nodedit, "Decoder", nk_rect(mouse.x, mouse.y, 180, 220),
                              0, 1, "sounds/jungle.mp3");
-                if (nk_contextual_item_label(ctx, "New Audio Oasis", NK_TEXT_CENTERED))
-                    node_editor_add_source_decoder(nodedit, "Decoder", nk_rect(mouse.x, mouse.y, 180, 220),
-                             0, 1, "sounds/oasis.mp3");
-                if (nk_contextual_item_label(ctx, "New Audio To Her Door", NK_TEXT_CENTERED))
-                    node_editor_add_source_decoder(nodedit, "Decoder", nk_rect(mouse.x, mouse.y, 180, 220),
-                             0, 1, "sounds/to-her-door-tim.mp3");
                 if (nk_contextual_item_label(ctx, "New Endpoint", NK_TEXT_CENTERED))
                     node_editor_add_endpoint(nodedit, "Endpoint", nk_rect(mouse.x, mouse.y, 180, 220),
                              1, 0);
