@@ -41,6 +41,8 @@ enum node_tag {
     NODE_ENDPOINT,
     NODE_SOURCE_DECODER,
     NODE_LOW_PASS_FILTER,
+    NODE_SPLITTER,
+    NODE_DELAY,
 };
 
 struct node_endpoint {
@@ -67,6 +69,14 @@ struct node_low_pass_filter {
     ma_lpf_node lpf;
 };
 
+struct node_splitter {
+    ma_splitter_node splitter;
+};
+
+struct node_delay {
+    ma_delay_node delay;
+};
+
 struct node {
     enum node_tag tag;
     int ID;
@@ -85,6 +95,8 @@ struct node {
         struct node_endpoint endpoint;
         struct node_source_decoder source_decoder;
         struct node_low_pass_filter low_pass_filter;
+        struct node_splitter splitter;
+        struct node_delay deplay;
     };
 };
 
@@ -132,31 +144,6 @@ void playback(ma_device *pDevice, void *pOutput, const void *pInput, ma_uint32 f
 void audio_init(void)
 {
     ma_result result;
-
-    /*ma_node_graph_config node_graph_config = ma_node_graph_config_init(CHANNELS);*/
-    /*result = ma_node_graph_init(&node_graph_config, NULL, &audio_state.node_graph);*/
-    /*if (result != MA_SUCCESS) {*/
-    /*    fprintf(stderr, "Error: failed to init node graph, error code = %d\n", result);*/
-    /*    exit(1);*/
-    /*}*/
-
-    /*// Decoder*/
-    /*ma_decoder_config decoder_config = ma_decoder_config_init(FORMAT, CHANNELS, SAMPLE_RATE);*/
-    /*result = ma_decoder_init_file("sounds/jungle.mp3", &decoder_config, &audio_state.decoder);*/
-    /*if (result != MA_SUCCESS) {*/
-    /*    fprintf(stderr, "Error: failed to initalise decoder, error code = %d\n", result);*/
-    /*    exit(1);*/
-    /*}*/
-
-    /*// Data Source*/
-    /*ma_data_source_node_config source_node_config = ma_data_source_node_config_init(&audio_state.decoder);*/
-    /*result = ma_data_source_node_init(&audio_state.node_graph, &source_node_config, NULL, &audio_state.source_node);*/
-    /*if (result != MA_SUCCESS) {*/
-    /*    fprintf(stderr, "Error: failed to initalise source node, error code = %d\n", result);*/
-    /*    exit(1);*/
-    /*}*/
-
-    /*ma_node_attach_output_bus(&audio_state.source_node, 0, ma_node_graph_get_endpoint(&audio_state.node_graph), 0);*/
 
     // Device Setup
     ma_device_config config = ma_device_config_init(ma_device_type_playback);
@@ -329,9 +316,9 @@ node_editor_add_low_pass_filter(struct node_editor *editor, const char *name, st
 {
     struct node *node = node_editor_add(editor, name, bounds, in_count, out_count);
     node->tag = NODE_LOW_PASS_FILTER;
+
     /* Low Pass Filter. */
     ma_lpf_node_config lpfNodeConfig = ma_lpf_node_config_init(CHANNELS, SAMPLE_RATE, SAMPLE_RATE / LPF_CUTOFF_FACTOR, LPF_ORDER);
-
     ma_result result = ma_lpf_node_init(&editor->audio_graph, &lpfNodeConfig, NULL, &node->low_pass_filter.lpf);
     if (result != MA_SUCCESS) {
         fprintf(stderr, "Error: failed to initalise low pass filter, error code = %d\n", result);
@@ -341,6 +328,46 @@ node_editor_add_low_pass_filter(struct node_editor *editor, const char *name, st
     /* Set the volume of the low pass filter to make it more of less impactful. */
     ma_node_set_output_bus_volume(&node->low_pass_filter.lpf, 0, LPF_BIAS);
     node->audio_node = &node->low_pass_filter.lpf;
+}
+
+// Splitter
+static void
+node_editor_add_splitter(struct node_editor *editor, const char *name, struct nk_rect bounds,
+        int in_count, int out_count)
+{
+    struct node *node = node_editor_add(editor, name, bounds, in_count, out_count);
+    node->tag = NODE_SPLITTER;
+
+    ma_splitter_node_config splitterNodeConfig = ma_splitter_node_config_init(CHANNELS);
+    ma_result result = ma_splitter_node_init(&editor->audio_graph, &splitterNodeConfig, NULL, &node->splitter.splitter);
+    if (result != MA_SUCCESS) {
+        fprintf(stderr, "Error: failed to initalise splitter, error code = %d\n", result);
+        return;
+    }
+
+    node->audio_node = &node->splitter.splitter;
+}
+
+// Echo / Delay
+static void
+node_editor_add_delay(struct node_editor *editor, const char *name, struct nk_rect bounds,
+        int in_count, int out_count)
+{
+    struct node *node = node_editor_add(editor, name, bounds, in_count, out_count);
+    node->tag = NODE_DELAY;
+
+    ma_delay_node_config delayNodeConfig = ma_delay_node_config_init(CHANNELS, SAMPLE_RATE, (ma_uint32)(SAMPLE_RATE * DELAY_IN_SECONDS), DECAY);
+
+    ma_result result = ma_delay_node_init(&editor->audio_graph, &delayNodeConfig, NULL, &node->deplay.delay);
+    if (result != MA_SUCCESS) {
+        fprintf(stderr, "Error: failed to initalise delay, error code = %d\n", result);
+        return;
+    }
+
+    /* Set the volume of the delay filter to make it more of less impactful. */
+    ma_node_set_output_bus_volume(&node->deplay.delay, 0, 1 - LPF_BIAS);
+
+    node->audio_node = &node->deplay.delay;
 }
 
 static void
@@ -434,8 +461,8 @@ node_editor_init(struct node_editor *editor)
     /*node_editor_link(editor, 3, 0, 5, 0);*/
     /*node_editor_link(editor, 4, 0, 5, 0);*/
 
-    node_editor_add_source_decoder(editor, "Data Source 1", nk_rect(40, 10, 180, 220), 0, 1);
-    node_editor_add_endpoint(editor, "Endpoint", nk_rect(540, 10, 180, 220), 1, 0);
+    /*node_editor_add_source_decoder(editor, "Data Source 1", nk_rect(40, 10, 180, 220), 0, 1);*/
+    /*node_editor_add_endpoint(editor, "Endpoint", nk_rect(540, 10, 180, 220), 1, 0);*/
     /*node_editor_link(editor, 0, 0, 1, 0);*/
 
     editor->show_grid = nk_true;
@@ -555,6 +582,12 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                             break;
                         case NODE_LOW_PASS_FILTER:
                             nk_label(ctx, "Low Pass Filter", NK_TEXT_ALIGN_CENTERED);
+                            break;
+                        case NODE_SPLITTER:
+                            nk_label(ctx, "SPLITTER", NK_TEXT_ALIGN_CENTERED);
+                            break;
+                        case NODE_DELAY:
+                            nk_label(ctx, "Echo / Delay", NK_TEXT_ALIGN_CENTERED);
                             break;
                     }
                     /* ====================================================*/
@@ -696,6 +729,12 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                              1, 0);
                 if (nk_contextual_item_label(ctx, "New Low Pass Filter", NK_TEXT_CENTERED))
                     node_editor_add_low_pass_filter(nodedit, "Low Pass Filter", nk_rect(mouse.x, mouse.y, 180, 220),
+                             1, 1);
+                if (nk_contextual_item_label(ctx, "New Splitter", NK_TEXT_CENTERED))
+                    node_editor_add_splitter(nodedit, "Splitter", nk_rect(mouse.x, mouse.y, 180, 220),
+                             1, 2);
+                if (nk_contextual_item_label(ctx, "New Echo / Delay", NK_TEXT_CENTERED))
+                    node_editor_add_delay(nodedit, "Echo / Delay", nk_rect(mouse.x, mouse.y, 180, 220),
                              1, 1);
                 nk_contextual_end(ctx);
             }
