@@ -24,6 +24,13 @@
 #define FORMAT ma_format_f32
 #define SAMPLE_RATE 48000
 
+/* Effect Properties */
+#define LPF_BIAS            0.9f    /* Higher values means more bias towards the low pass filter (the low pass filter will be more audible). Lower values means more bias towards the echo. Must be between 0 and 1. */
+#define LPF_CUTOFF_FACTOR   80      /* High values = more filter. */
+#define LPF_ORDER           8
+#define DELAY_IN_SECONDS    0.2f
+#define DECAY               0.5f    /* Volume falloff for each echo. */
+
 static struct {
     ma_device device;
 } audio_state;
@@ -33,6 +40,7 @@ enum node_tag {
     NODE_SOURCE_SOUND,
     NODE_ENDPOINT,
     NODE_SOURCE_DECODER,
+    NODE_LOW_PASS_FILTER,
 };
 
 struct node_endpoint {
@@ -55,6 +63,10 @@ struct node_source_sound {
     int volume;
 };
 
+struct node_low_pass_filter {
+    ma_lpf_node lpf;
+};
+
 struct node {
     enum node_tag tag;
     int ID;
@@ -72,6 +84,7 @@ struct node {
         struct node_source_sound source_sound;
         struct node_endpoint endpoint;
         struct node_source_decoder source_decoder;
+        struct node_low_pass_filter low_pass_filter;
     };
 };
 
@@ -309,6 +322,27 @@ node_editor_add_source_decoder(struct node_editor *editor, const char *name, str
     node->audio_node = &node->source_decoder.source;
 }
 
+// Low Pass filter
+static void
+node_editor_add_low_pass_filter(struct node_editor *editor, const char *name, struct nk_rect bounds,
+        int in_count, int out_count)
+{
+    struct node *node = node_editor_add(editor, name, bounds, in_count, out_count);
+    node->tag = NODE_LOW_PASS_FILTER;
+    /* Low Pass Filter. */
+    ma_lpf_node_config lpfNodeConfig = ma_lpf_node_config_init(CHANNELS, SAMPLE_RATE, SAMPLE_RATE / LPF_CUTOFF_FACTOR, LPF_ORDER);
+
+    ma_result result = ma_lpf_node_init(&editor->audio_graph, &lpfNodeConfig, NULL, &node->low_pass_filter.lpf);
+    if (result != MA_SUCCESS) {
+        fprintf(stderr, "Error: failed to initalise low pass filter, error code = %d\n", result);
+        return;
+    }
+
+    /* Set the volume of the low pass filter to make it more of less impactful. */
+    ma_node_set_output_bus_volume(&node->low_pass_filter.lpf, 0, LPF_BIAS);
+    node->audio_node = &node->low_pass_filter.lpf;
+}
+
 static void
 node_editor_link(struct node_editor *editor, int in_id, int in_slot,
     int out_id, int out_slot)
@@ -402,7 +436,7 @@ node_editor_init(struct node_editor *editor)
 
     node_editor_add_source_decoder(editor, "Data Source 1", nk_rect(40, 10, 180, 220), 0, 1);
     node_editor_add_endpoint(editor, "Endpoint", nk_rect(540, 10, 180, 220), 1, 0);
-    node_editor_link(editor, 0, 0, 1, 0);
+    /*node_editor_link(editor, 0, 0, 1, 0);*/
 
     editor->show_grid = nk_true;
 }
@@ -518,6 +552,9 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                             break;
                         case NODE_SOURCE_DECODER:
                             nk_label(ctx, it->source_decoder.file_name, NK_TEXT_ALIGN_CENTERED);
+                            break;
+                        case NODE_LOW_PASS_FILTER:
+                            nk_label(ctx, "Low Pass Filter", NK_TEXT_ALIGN_CENTERED);
                             break;
                     }
                     /* ====================================================*/
@@ -646,25 +683,20 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                     it = it->next;
                 }
             }
-
+            struct nk_vec2 mouse = ctx->input.mouse.pos;
             /* contextual menu */
-            if (nk_contextual_begin(ctx, 0, nk_vec2(140, 220), nk_window_get_bounds(ctx))) {
+            if (nk_contextual_begin(ctx, 0, nk_vec2(150, 220), nk_window_get_bounds(ctx))) {
                 const char *grid_option[] = {"Show Grid", "Hide Grid"};
                 nk_layout_row_dynamic(ctx, 25, 1);
                 if (nk_contextual_item_label(ctx, "New Audio File", NK_TEXT_CENTERED))
-                    node_editor_add_source_decoder(nodedit, "Decoder", nk_rect(400, 260, 180, 220),
-                             0, 2);
+                    node_editor_add_source_decoder(nodedit, "Decoder", nk_rect(mouse.x, mouse.y, 180, 220),
+                             0, 1);
                 if (nk_contextual_item_label(ctx, "New Endpoint", NK_TEXT_CENTERED))
-                    node_editor_add_endpoint(nodedit, "Endpoint", nk_rect(400, 260, 180, 220),
+                    node_editor_add_endpoint(nodedit, "Endpoint", nk_rect(mouse.x, mouse.y, 180, 220),
                              1, 0);
-                /*if (nk_contextual_item_label(ctx, "New Sound", NK_TEXT_CENTERED))*/
-                /*    node_editor_add_source_sound(nodedit, "Souce Sound", nk_rect(400, 260, 180, 220),*/
-                /*             1, 2, "drwav.mp3");*/
-                /*if (nk_contextual_item_label(ctx, "New Color", NK_TEXT_CENTERED))*/
-                /*    node_editor_add_color(nodedit, "Color", nk_rect(400, 260, 180, 220),*/
-                /*             1, 2, nk_rgb(255, 255, 255));*/
-                /*if (nk_contextual_item_label(ctx, grid_option[nodedit->show_grid],NK_TEXT_CENTERED))*/
-                /*    nodedit->show_grid = !nodedit->show_grid;*/
+                if (nk_contextual_item_label(ctx, "New Low Pass Filter", NK_TEXT_CENTERED))
+                    node_editor_add_low_pass_filter(nodedit, "Low Pass Filter", nk_rect(mouse.x, mouse.y, 180, 220),
+                             1, 1);
                 nk_contextual_end(ctx);
             }
         }
