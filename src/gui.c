@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "nuklear.h"
 #include "miniaudio.h"
@@ -37,10 +38,13 @@ struct node_endpoint {
     ma_node *endpoint;
 };
 
+
+#define MAX_FILE_NAME_SIZE 256
+
 struct node_source_decoder {
     ma_decoder decoder;
     ma_data_source_node source;
-    char file_name[32];
+    char file_name[MAX_FILE_NAME_SIZE];
 };
 
 struct node_low_pass_filter {
@@ -243,7 +247,7 @@ node_editor_add_source_decoder(struct node_editor *editor, const char *name, str
     if (file_name == NULL) {
         FileDialogResult file_result = open_file_dialog("Choose a file", NULL);
         if (file_result.success) {
-            strcpy(node->source_decoder.file_name, file_result.path);
+            strncpy(node->source_decoder.file_name, file_result.path, MAX_FILE_NAME_SIZE);
             free_file_dialog_result(&file_result);
         } else {
             fprintf(stderr, "Error: failed load file\n");
@@ -271,6 +275,8 @@ node_editor_add_source_decoder(struct node_editor *editor, const char *name, str
         exit(1);
     }
     node->audio_node = &node->source_decoder.source;
+
+    ma_data_source_node_set_looping(&node->source_decoder.source, false);
 }
 
 // Low Pass filter
@@ -520,6 +526,8 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                             break;
                         case NODE_SOURCE_DECODER:
                             nk_label(ctx, it->source_decoder.file_name, NK_TEXT_ALIGN_CENTERED);
+                            bool looping = nk_check_label(ctx, "Loop", ma_data_source_node_is_looping(&it->source_decoder.source));
+                            ma_data_source_node_set_looping(&it->source_decoder.source, looping);
                             break;
                         case NODE_LOW_PASS_FILTER:
                             nk_label(ctx, "Low Pass Filter", NK_TEXT_ALIGN_CENTERED);
