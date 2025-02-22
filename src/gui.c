@@ -1,16 +1,3 @@
-/* nuklear - v1.00 - public domain */
-/* This is a simple node editor just to show a simple implementation and that
- * it is possible to achieve it with this library. While all nodes inside this
- * example use a simple color modifier as content you could change them
- * to have your custom content depending on the node time.
- * Biggest difference to most usual implementation is that this example does
- * not have connectors on the right position of the property that it links.
- * This is mainly done out of laziness and could be implemented as well but
- * requires calculating the position of all rows and add connectors.
- * In addition adding and removing nodes is quite limited at the
- * moment since it is based on a simple fixed array. If this is to be converted
- * into something more serious it is probably best to extend it.*/
-
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
@@ -39,8 +26,6 @@ static struct {
 } audio_state;
 
 enum node_tag {
-    NODE_COLOR,
-    NODE_SOURCE_SOUND,
     NODE_ENDPOINT,
     NODE_SOURCE_DECODER,
     NODE_LOW_PASS_FILTER,
@@ -56,16 +41,6 @@ struct node_source_decoder {
     ma_decoder decoder;
     ma_data_source_node source;
     char file_name[32];
-};
-
-struct node_color {
-    float value;
-    struct nk_color color;
-};
-
-struct node_source_sound {
-    char file_name[32];
-    int volume;
 };
 
 struct node_low_pass_filter {
@@ -93,8 +68,6 @@ struct node {
     ma_node *audio_node;
 
     union {
-        struct node_color color;
-        struct node_source_sound source_sound;
         struct node_endpoint endpoint;
         struct node_source_decoder source_decoder;
         struct node_low_pass_filter low_pass_filter;
@@ -108,8 +81,6 @@ struct node_link {
     int input_slot;
     int output_id;
     int output_slot;
-    /*struct nk_vec2 in;*/
-    /*struct nk_vec2 out;*/
 };
 
 struct node_linking {
@@ -121,15 +92,15 @@ struct node_linking {
 
 struct node_editor {
     int initialized;
-    struct node node_buf[32];
-    struct node_link links[64];
+    struct node node_buf[256];
+    struct node_link links[1024];
     struct node *begin;
     struct node *end;
     int node_count;
     int link_count;
     struct nk_rect bounds;
     struct node *selected;
-    int show_grid;
+    nk_bool show_grid;
     struct nk_vec2 scrolling;
     struct node_linking linking;
     ma_node_graph audio_graph;
@@ -245,28 +216,6 @@ static struct node* node_editor_node_by_id(struct node_editor *editor, const int
         if (node.ID == id) return &editor->node_buf[i];
     }
     return NULL;
-}
-
-static void
-node_editor_add_color(struct node_editor *editor, const char *name, struct nk_rect bounds,
-    int in_count, int out_count,
-    struct nk_color col )
-{
-    struct node *node = node_editor_add(editor, name, bounds, in_count, out_count);
-    node->tag = NODE_COLOR;
-    node->color.value = 0;
-    node->color.color = col;
-}
-
-static void
-node_editor_add_source_sound(struct node_editor *editor, const char *name, struct nk_rect bounds,
-    int in_count, int out_count,
-    char *file_name )
-{
-    struct node *node = node_editor_add(editor, name, bounds, in_count, out_count);
-    node->tag = NODE_SOURCE_SOUND;
-    strcpy(node->source_sound.file_name, file_name);
-    node->source_sound.volume = 5;
 }
 
 // Endpoint
@@ -562,17 +511,10 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                     nk_layout_row_dynamic(ctx, 25, 1);
                     #pragma clang diagnostic ignored "-Wswitch"
                     switch (it->tag) {
-                        case NODE_COLOR:
-                            nk_button_color(ctx, it->color.color);
-                            it->color.color.r = (nk_byte)nk_propertyi(ctx, "#R:", 0, it->color.color.r, 255, 1,1);
-                            it->color.color.g = (nk_byte)nk_propertyi(ctx, "#G:", 0, it->color.color.g, 255, 1,1);
-                            it->color.color.b = (nk_byte)nk_propertyi(ctx, "#B:", 0, it->color.color.b, 255, 1,1);
-                            it->color.color.a = (nk_byte)nk_propertyi(ctx, "#A:", 0, it->color.color.a, 255, 1,1);
-                            break;
-                        case NODE_SOURCE_SOUND:
-                            nk_label(ctx, it->source_sound.file_name, NK_TEXT_ALIGN_CENTERED);
-                            nk_property_int(ctx, "#Volume", 0, &it->source_sound.volume, 20, 1, 0.5);
-                            break;
+                        /*case NODE_SOURCE_SOUND:*/
+                        /*    nk_label(ctx, it->source_sound.file_name, NK_TEXT_ALIGN_CENTERED);*/
+                        /*    nk_property_int(ctx, "#Volume", 0, &it->source_sound.volume, 20, 1, 0.5);*/
+                        /*    break;*/
                         case NODE_ENDPOINT:
                             nk_label(ctx, "Audio Device", NK_TEXT_ALIGN_CENTERED);
                             break;
@@ -720,22 +662,22 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
             if (nk_contextual_begin(ctx, 0, nk_vec2(150, 220), nk_window_get_bounds(ctx))) {
                 const char *grid_option[] = {"Show Grid", "Hide Grid"};
                 nk_layout_row_dynamic(ctx, 25, 1);
-                if (nk_contextual_item_label(ctx, "New Audio File", NK_TEXT_CENTERED))
+                if (nk_contextual_item_label(ctx, "New Audio File", NK_TEXT_LEFT))
                     node_editor_add_source_decoder(nodedit, "Decoder", nk_rect(mouse.x, mouse.y, 180, 220),
                              0, 1, NULL);
-                if (nk_contextual_item_label(ctx, "New Audio Jungle", NK_TEXT_CENTERED))
+                if (nk_contextual_item_label(ctx, "New Audio Jungle", NK_TEXT_LEFT))
                     node_editor_add_source_decoder(nodedit, "Decoder", nk_rect(mouse.x, mouse.y, 180, 220),
                              0, 1, "sounds/jungle.mp3");
-                if (nk_contextual_item_label(ctx, "New Endpoint", NK_TEXT_CENTERED))
+                if (nk_contextual_item_label(ctx, "New Endpoint", NK_TEXT_LEFT))
                     node_editor_add_endpoint(nodedit, "Endpoint", nk_rect(mouse.x, mouse.y, 180, 220),
                              1, 0);
-                if (nk_contextual_item_label(ctx, "New Low Pass Filter", NK_TEXT_CENTERED))
+                if (nk_contextual_item_label(ctx, "New Low Pass Filter", NK_TEXT_LEFT))
                     node_editor_add_low_pass_filter(nodedit, "Low Pass Filter", nk_rect(mouse.x, mouse.y, 180, 220),
                              1, 1);
-                if (nk_contextual_item_label(ctx, "New Splitter", NK_TEXT_CENTERED))
+                if (nk_contextual_item_label(ctx, "New Splitter", NK_TEXT_LEFT))
                     node_editor_add_splitter(nodedit, "Splitter", nk_rect(mouse.x, mouse.y, 180, 220),
                              1, 2);
-                if (nk_contextual_item_label(ctx, "New Echo / Delay", NK_TEXT_CENTERED))
+                if (nk_contextual_item_label(ctx, "New Echo / Delay", NK_TEXT_LEFT))
                     node_editor_add_delay(nodedit, "Echo / Delay", nk_rect(mouse.x, mouse.y, 180, 220),
                              1, 1);
                 nk_contextual_end(ctx);
