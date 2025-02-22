@@ -1,5 +1,9 @@
 # Notes
 
+Node links
+audio -> mutiple in
+      -> one out
+
 
 MIDI support:
 https://github.com/atsushieno/cmidi2
