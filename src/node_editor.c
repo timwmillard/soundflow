@@ -282,18 +282,17 @@ node_editor_add_endpoint(struct node_editor *editor, const char *name, struct nk
 // Source Decoder
 static void
 node_editor_add_source_decoder(struct node_editor *editor, const char *name, struct nk_rect bounds,
-    int in_count, int out_count)
+    int in_count, int out_count, char *file_name)
 {
     struct node *node = node_editor_add(editor, name, bounds, in_count, out_count);
     node->tag = NODE_SOURCE_DECODER;
 
-    strcpy(node->source_decoder.file_name, "sounds/jungle.mp3");
+    strcpy(node->source_decoder.file_name, file_name);
     ma_result result;
 
     // Decoder
     ma_decoder_config decoder_config = ma_decoder_config_init(FORMAT, CHANNELS, SAMPLE_RATE);
-    /*result = ma_decoder_init_file(node->source_decoder.file_name, &decoder_config, &node->source_decoder.decoder);*/
-    result = ma_decoder_init_file("sounds/jungle.mp3", &decoder_config, &node->source_decoder.decoder);
+    result = ma_decoder_init_file(node->source_decoder.file_name, &decoder_config, &node->source_decoder.decoder);
     if (result != MA_SUCCESS) {
         fprintf(stderr, "Error: failed to initalise decoder, error code = %d\n", result);
         exit(1);
@@ -461,8 +460,8 @@ node_editor_init(struct node_editor *editor)
     /*node_editor_link(editor, 3, 0, 5, 0);*/
     /*node_editor_link(editor, 4, 0, 5, 0);*/
 
-    /*node_editor_add_source_decoder(editor, "Data Source 1", nk_rect(40, 10, 180, 220), 0, 1);*/
-    /*node_editor_add_endpoint(editor, "Endpoint", nk_rect(540, 10, 180, 220), 1, 0);*/
+    node_editor_add_source_decoder(editor, "Data Source 1", nk_rect(40, 10, 180, 220), 0, 1, "sounds/jungle.mp3");
+    node_editor_add_endpoint(editor, "Endpoint", nk_rect(540, 10, 180, 220), 1, 0);
     /*node_editor_link(editor, 0, 0, 1, 0);*/
 
     editor->show_grid = nk_true;
@@ -721,9 +720,15 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
             if (nk_contextual_begin(ctx, 0, nk_vec2(150, 220), nk_window_get_bounds(ctx))) {
                 const char *grid_option[] = {"Show Grid", "Hide Grid"};
                 nk_layout_row_dynamic(ctx, 25, 1);
-                if (nk_contextual_item_label(ctx, "New Audio File", NK_TEXT_CENTERED))
+                if (nk_contextual_item_label(ctx, "New Audio Jungle", NK_TEXT_CENTERED))
                     node_editor_add_source_decoder(nodedit, "Decoder", nk_rect(mouse.x, mouse.y, 180, 220),
-                             0, 1);
+                             0, 1, "sounds/jungle.mp3");
+                if (nk_contextual_item_label(ctx, "New Audio Oasis", NK_TEXT_CENTERED))
+                    node_editor_add_source_decoder(nodedit, "Decoder", nk_rect(mouse.x, mouse.y, 180, 220),
+                             0, 1, "sounds/oasis.mp3");
+                if (nk_contextual_item_label(ctx, "New Audio To Her Door", NK_TEXT_CENTERED))
+                    node_editor_add_source_decoder(nodedit, "Decoder", nk_rect(mouse.x, mouse.y, 180, 220),
+                             0, 1, "sounds/to-her-door-tim.mp3");
                 if (nk_contextual_item_label(ctx, "New Endpoint", NK_TEXT_CENTERED))
                     node_editor_add_endpoint(nodedit, "Endpoint", nk_rect(mouse.x, mouse.y, 180, 220),
                              1, 0);
