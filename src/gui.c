@@ -354,22 +354,31 @@ static void
 node_editor_link(struct node_editor *editor, int in_id, int in_slot,
     int out_id, int out_slot)
 {
-    struct node_link *link;
+    struct node_link *link = NULL;
 
     // Check for exiting link
     for (int i=0; i<editor->link_count; i++) {
-        struct node_link *link = &editor->links[i];
-        if (link->input_id == in_id && link->input_slot == in_slot &&
-            link->output_id == out_id && link->output_slot == out_slot) {
+        struct node_link *lk = &editor->links[i];
+        if (lk->input_id == in_id && lk->input_slot == in_slot &&
+            lk->output_id == out_id && lk->output_slot == out_slot) {
             printf("[INFO] NODE exists, ignoring linking %d(%d) -> %d(%d)\n", in_id, in_slot, out_id, out_slot);
             return;
         }
     }
 
-    assert((nk_size)editor->link_count < NK_LEN(editor->links));
-    link = &editor->links[editor->link_count++];
-    link->input_id = in_id;
-    link->input_slot = in_slot;
+    // Check for exiting in
+    for (int i=0; i<editor->link_count; i++) {
+        struct node_link *lk = &editor->links[i];
+        if (lk->input_id == in_id && lk->input_slot == in_slot)
+            link = lk;
+    }
+    if (link == NULL) {
+        // new link
+        assert((nk_size)editor->link_count < NK_LEN(editor->links));
+        link = &editor->links[editor->link_count++];
+        link->input_id = in_id;
+        link->input_slot = in_slot;
+    }
     link->output_id = out_id;
     link->output_slot = out_slot;
 
