@@ -90,9 +90,9 @@ struct node {
 };
 
 struct node_link {
-    int input_id;
+    int input_id; // node id
     int input_slot;
-    int output_id;
+    int output_id; // node id
     int output_slot;
 };
 
@@ -354,6 +354,17 @@ node_editor_link(struct node_editor *editor, int in_id, int in_slot,
     int out_id, int out_slot)
 {
     struct node_link *link;
+
+    // Check for exiting link
+    for (int i=0; i<editor->link_count; i++) {
+        struct node_link *link = &editor->links[i];
+        if (link->input_id == in_id && link->input_slot == in_slot &&
+            link->output_id == out_id && link->output_slot == out_slot) {
+            printf("[INFO] NODE exists, ignoring linking %d(%d) -> %d(%d)\n", in_id, in_slot, out_id, out_slot);
+            return;
+        }
+    }
+
     assert((nk_size)editor->link_count < NK_LEN(editor->links));
     link = &editor->links[editor->link_count++];
     link->input_id = in_id;
@@ -373,6 +384,28 @@ node_editor_link(struct node_editor *editor, int in_id, int in_slot,
     if (result != MA_SUCCESS) {
         fprintf(stderr, "[ERROR]: failed to link nodes, error code = %d\n", result);
     }
+}
+
+static bool node_editor_is_in_linked(struct node_editor *editor, int in_id, int in_slot)
+{
+    struct node_link *link;
+    for (int i=0; i<editor->link_count; i++) {
+        link = &editor->links[i];
+        if (link->input_id == in_id && link->input_slot == in_slot)
+            return true;
+    }
+    return false;
+}
+
+static bool node_editor_is_out_linked(struct node_editor *editor, int out_id, int out_slot)
+{
+    struct node_link *link;
+    for (int i=0; i<editor->link_count; i++) {
+        link = &editor->links[i];
+        if (link->output_id == out_id && link->output_slot == out_slot)
+            return true;
+    }
+    return false;
 }
 
 // TODO: this is broken
@@ -584,9 +617,12 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                     circle.y = node_panel->bounds.y + space * (float)(n+1);
                     circle.w = 8; circle.h = 8;
                     struct nk_rect target = circle;
-                    target.w = 30; target.h = 30;
+                    target.x -= 20; target.y -= 20;
+                    target.w += 40; target.h += 40;
 
                     struct nk_color cir_color = nk_rgb(100, 100, 100);
+                    if (node_editor_is_in_linked(nodedit, it->ID, n))
+                        cir_color = nk_rgb(100, 100, 200);
                     if (nk_input_is_mouse_hovering_rect(in, target) || 
                             (nodedit->linking.active && nodedit->linking.node == it &&
                              nodedit->linking.input_slot == n))
@@ -595,11 +631,13 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
 
                     /* delete link */
                     if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, target, nk_true)) {
+                        printf("Delete link %d\n", it->ID);
                         node_editor_unlink_out(nodedit, it->ID, n);
                     }
 
                     /* start linking process */
-                    if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, target, nk_true)) {
+                    if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, target, nk_true)
+                            ) {
                         nodedit->linking.active = nk_true;
                         nodedit->linking.node = it;
                         nodedit->linking.input_id = it->ID;
@@ -625,8 +663,11 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                     circle.w = 8; circle.h = 8;
 
                     struct nk_rect target = circle;
-                    target.w = 30; target.h = 30;
+                    target.x -= 20; target.y -= 20;
+                    target.w += 40; target.h += 40;
                     struct nk_color cir_color = nk_rgb(100, 100, 100);
+                    if (node_editor_is_out_linked(nodedit, it->ID, n))
+                        cir_color = nk_rgb(100, 100, 200);
                     if (nk_input_is_mouse_hovering_rect(in, target) && 
                             nodedit->linking.active)
                         cir_color = nk_rgb(100, 200, 100);
