@@ -76,6 +76,7 @@ struct node {
     int output_count;
     struct node *next;
     struct node *prev;
+    bool delete;
 
     ma_node *audio_node;
 
@@ -412,6 +413,13 @@ node_editor_unlink_out(struct node_editor *editor, int out_id, int out_slot)
     editor->link_count--;
 }
 
+
+static void
+node_editor_delete_node(struct node_editor *editor, struct node *node)
+{
+    node_editor_pop(editor, node);
+}
+
 static void
 node_editor_init(struct node_editor *editor)
 {
@@ -503,16 +511,24 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
 
             /* execute each node as a movable group */
             while (it) {
+                if (it->delete) goto next;
+
                 /* calculate scrolled node window position and size */
                 nk_layout_space_push(ctx, nk_rect(it->bounds.x - nodedit->scrolling.x,
                     it->bounds.y - nodedit->scrolling.y, it->bounds.w, it->bounds.h));
 
                 /* execute node window */
-                if (nk_group_begin(ctx, it->name, NK_WINDOW_MOVABLE|NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER|NK_WINDOW_TITLE))
-                {
+                if (nk_group_begin(ctx, it->name, NK_WINDOW_MOVABLE|NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER|NK_WINDOW_TITLE|NK_WINDOW_CLOSABLE)) {
                     /* always have last selected node on top */
 
                     node = nk_window_get_panel(ctx);
+                    if (node->flags & NK_WINDOW_HIDDEN) {
+                        it->delete = true;
+                        nk_group_end(ctx);
+                        node_editor_pop(&nodeEditor, it);
+                        goto next;
+                    }
+
                     if (nk_input_mouse_clicked(in, NK_BUTTON_LEFT, node->bounds) &&
                         (!(it->prev && nk_input_mouse_clicked(in, NK_BUTTON_LEFT,
                         nk_layout_space_rect_to_screen(ctx, node->bounds)))) &&
@@ -548,10 +564,11 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                             break;
                     }
                     /* ====================================================*/
-                    nk_group_end(ctx);
                 }
+                nk_group_end(ctx);
+                
+                // node connector and linking
                 {
-                    /* node connector and linking */
                     float space;
                     struct nk_rect bounds;
                     bounds = nk_layout_space_rect_to_local(ctx, node->bounds);
@@ -611,6 +628,7 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
 
                         /* delete link */
                         if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, circle, nk_true)) {
+                            printf("Delete link %d\n", it->ID);
                             node_editor_unlink_in(nodedit, it->ID, n);
                         }
 
@@ -623,6 +641,7 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                         }
                     }
                 }
+            next:
                 it = it->next;
             }
 
