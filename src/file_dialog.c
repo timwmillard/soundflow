@@ -6,6 +6,7 @@
 #elif __APPLE__
 #include <CoreFoundation/CoreFoundation.h>
 #include <AppKit/AppKit.h>
+#elif __EMSCRIPTEN__
 #else  // Linux
 #include <gtk/gtk.h>
 #endif
@@ -75,16 +76,24 @@ FileDialogResult open_file_dialog(const char* title, const char* filter) {
     return result;
 }
 
+#elif __EMSCRIPTEN__
+// Web implmentation
+FileDialogResult open_file_dialog(const char* title, const char* filter) {
+    FileDialogResult result = {NULL, 0};
+    // TODO: web implementation
+    return result;
+}
+
 #else
 // GTK (Linux) implementation
 FileDialogResult open_file_dialog(const char* title, const char* filter) {
     FileDialogResult result = {NULL, 0};
-    
+
     // Initialize GTK if needed
     if (!gtk_init_check(NULL, NULL)) {
         return result;
     }
-    
+
     GtkWidget *dialog = gtk_file_chooser_dialog_new(
         title ? title : "Open File",
         NULL,
@@ -93,24 +102,24 @@ FileDialogResult open_file_dialog(const char* title, const char* filter) {
         "_Open", GTK_RESPONSE_ACCEPT,
         NULL
     );
-    
+
     if (filter) {
         GtkFileFilter *file_filter = gtk_file_filter_new();
         gtk_file_filter_set_name(file_filter, filter);
         gtk_file_filter_add_pattern(file_filter, filter);
         gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), file_filter);
     }
-    
+
     if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
         char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
         result.path = strdup(filename);
         result.success = 1;
         g_free(filename);
     }
-    
+
     gtk_widget_destroy(dialog);
     while (gtk_events_pending()) gtk_main_iteration();
-    
+
     return result;
 }
 #endif

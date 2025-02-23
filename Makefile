@@ -5,7 +5,7 @@
 
 TARGET = soundflow
 
-CFLAGS=-std=c99
+CSTD=c99
 CFLAGS+=-Wall -Wextra -Wno-unused-function -Wno-missing-field-initializers
 CC=clang
 INCS=-Iinclude
@@ -17,10 +17,12 @@ ifndef platform
 	platform=macos
 endif
 ifeq ($(platform), windows)
+	CFLAGS=-std=$(CSTD)
 	CC=x86_64-w64-mingw32-gcc
 	LIBS+=-lkernel32 -luser32 -lshell32 -lgdi32 -ld3d11 -ldxgi
 	OUTEXT=.exe
 else ifeq ($(platform), linux)
+	CFLAGS=-std=$(CSTD)
 	CC=gcc
 	DEFS+=-D_GNU_SOURCE
 	CFLAGS+=-pthread
@@ -29,6 +31,7 @@ else ifeq ($(platform), linux)
 		LIBS+=-lEGL
 	endif
 else ifeq ($(platform), macos)
+	CFLAGS=-std=$(CSTD)
 	CC=clang
 	LIBS+=-framework Cocoa -framework QuartzCore -framework Metal -framework MetalKit
 	CFLAGS+=-ObjC
@@ -36,7 +39,7 @@ else ifeq ($(platform), web)
 	CC=/usr/local/emsdk/upstream/emscripten/emcc
 	LIBS+=-sFULL_ES3
 	OUTEXT=.html
-	CFLAGS+=--shell-file=web/shell.html --embed-file assets
+	CFLAGS+=--shell-file=web/shell.html # --embed-file assets
 endif
 
 # build type
