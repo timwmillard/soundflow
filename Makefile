@@ -6,7 +6,7 @@
 TARGET = soundflow
 
 CFLAGS=-std=c99
-CFLAGS+=-Wall -Wextra -Wshadow -Wno-unused-function -Wno-missing-field-initializers
+CFLAGS+=-Wall -Wextra -Wno-unused-function -Wno-missing-field-initializers
 CC=clang
 INCS=-Iinclude
 BUILDDIR=build

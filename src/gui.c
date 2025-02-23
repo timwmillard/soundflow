@@ -415,9 +415,10 @@ node_editor_unlink_out(struct node_editor *editor, int out_id, int out_slot)
 
 
 static void
-node_editor_delete_node(struct node_editor *editor, struct node *node)
+node_editor_delete(struct node_editor *editor, struct node *node)
 {
     node_editor_pop(editor, node);
+    // TODO: delete links
 }
 
 static void
@@ -525,7 +526,7 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                     if (node->flags & NK_WINDOW_HIDDEN) {
                         it->delete = true;
                         nk_group_end(ctx);
-                        node_editor_pop(&nodeEditor, it);
+                        node_editor_delete(&nodeEditor, it);
                         goto next;
                     }
 
@@ -693,7 +694,6 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
             struct nk_vec2 mouse = ctx->input.mouse.pos;
             /* contextual menu */
             if (nk_contextual_begin(ctx, 0, nk_vec2(150, 220), nk_window_get_bounds(ctx))) {
-                const char *grid_option[] = {"Show Grid", "Hide Grid"};
                 nk_layout_row_dynamic(ctx, 25, 1);
                 if (nk_contextual_item_label(ctx, "New Audio File", NK_TEXT_LEFT))
                     node_editor_add_source_decoder(nodedit, "Decoder", nk_rect(mouse.x, mouse.y, 180, 220),
