@@ -379,7 +379,7 @@ node_editor_link(struct node_editor *editor, int in_id, int in_slot,
             || out_node->audio_node == NULL || in_node->audio_node == NULL)
             return;
 
-    printf("[DEBUG] connecting nodes %d(%d) -> %d(%d)\n", out_node->ID, out_slot, in_node->ID, in_slot);
+    printf("[DEBUG] connecting nodes %d(%d) -> %d(%d)\n", in_node->ID, in_slot, out_node->ID, out_slot);
     ma_result result = ma_node_attach_output_bus(in_node->audio_node, in_slot, out_node->audio_node, out_slot);
     if (result != MA_SUCCESS) {
         fprintf(stderr, "[ERROR]: failed to link nodes, error code = %d\n", result);
@@ -464,7 +464,7 @@ node_editor_init(struct node_editor *editor)
     ma_node_graph_config node_graph_config = ma_node_graph_config_init(CHANNELS);
     ma_result result = ma_node_graph_init(&node_graph_config, NULL, &editor->audio_graph);
     if (result != MA_SUCCESS) {
-        fprintf(stderr, "Error: failed to init node graph, error code = %d\n", result);
+        fprintf(stderr, "[ERROR] failed to init node graph, error code = %d\n", result);
         exit(1);
     }
 
@@ -631,8 +631,8 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
 
                     /* delete link */
                     if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, target, nk_true)) {
-                        printf("Delete link %d\n", it->ID);
                         node_editor_unlink_out(nodedit, it->ID, n);
+                        fprintf(stdout, "[INFO] link deleted\n");
                     }
 
                     /* start linking process */
@@ -675,8 +675,8 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
 
                     /* delete link */
                     if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, target, nk_true)) {
-                        printf("Delete link %d\n", it->ID);
                         node_editor_unlink_in(nodedit, it->ID, n);
+                        fprintf(stdout, "[INFO] link deleted\n");
                     }
 
                     if (nk_input_is_mouse_released(in, NK_BUTTON_LEFT) &&
@@ -695,7 +695,7 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
             if (nodedit->linking.active && nk_input_is_mouse_released(in, NK_BUTTON_LEFT)) {
                 nodedit->linking.active = nk_false;
                 nodedit->linking.node = NULL;
-                fprintf(stdout, "linking failed\n");
+                fprintf(stdout, "[INFO] linking failed\n");
             }
 
             /* draw each link */
