@@ -497,10 +497,10 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
         {
             struct node *it = nodedit->begin;
             struct nk_rect size = nk_layout_space_bounds(ctx);
-            struct nk_panel *node = 0;
+            struct nk_panel *node_panel = 0;
 
             if (nodedit->show_grid) {
-                /* display grid */
+                // display grid
                 float x, y;
                 const float grid_size = 32.0f;
                 const struct nk_color grid_color = nk_rgb(50, 50, 50);
@@ -510,7 +510,7 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                     nk_stroke_line(canvas, size.x, y+size.y, size.x+size.w, y+size.y, 1.0f, grid_color);
             }
 
-            /* execute each node as a movable group */
+            // Draw each node panel
             while (it) {
                 if (it->delete) goto next;
 
@@ -522,17 +522,17 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                 if (nk_group_begin(ctx, it->name, NK_WINDOW_MOVABLE|NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER|NK_WINDOW_TITLE|NK_WINDOW_CLOSABLE)) {
                     /* always have last selected node on top */
 
-                    node = nk_window_get_panel(ctx);
-                    if (node->flags & NK_WINDOW_HIDDEN) {
+                    node_panel = nk_window_get_panel(ctx);
+                    if (node_panel->flags & NK_WINDOW_HIDDEN) {
                         it->delete = true;
                         nk_group_end(ctx);
-                        node_editor_delete(&nodeEditor, it);
+                        node_editor_delete(nodedit, it);
                         goto next;
                     }
 
-                    if (nk_input_mouse_clicked(in, NK_BUTTON_LEFT, node->bounds) &&
+                    if (nk_input_mouse_clicked(in, NK_BUTTON_LEFT, node_panel->bounds) &&
                         (!(it->prev && nk_input_mouse_clicked(in, NK_BUTTON_LEFT,
-                        nk_layout_space_rect_to_screen(ctx, node->bounds)))) &&
+                        nk_layout_space_rect_to_screen(ctx, node_panel->bounds)))) &&
                         nodedit->end != it)
                     {
                         updated = it;
@@ -571,32 +571,35 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                 // node connector and linking
                 float space;
                 struct nk_rect bounds;
-                bounds = nk_layout_space_rect_to_local(ctx, node->bounds);
+                bounds = nk_layout_space_rect_to_local(ctx, node_panel->bounds);
                 bounds.x += nodedit->scrolling.x;
                 bounds.y += nodedit->scrolling.y;
                 it->bounds = bounds;
 
                 /* output connector */
-                space = node->bounds.h / (float)((it->output_count) + 1);
+                space = node_panel->bounds.h / (float)((it->output_count) + 1);
                 for (n = 0; n < it->output_count; ++n) {
                     struct nk_rect circle;
-                    circle.x = node->bounds.x + node->bounds.w-4;
-                    circle.y = node->bounds.y + space * (float)(n+1);
+                    circle.x = node_panel->bounds.x + node_panel->bounds.w-4;
+                    circle.y = node_panel->bounds.y + space * (float)(n+1);
                     circle.w = 8; circle.h = 8;
+                    struct nk_rect target = circle;
+                    target.w = 30; target.h = 30;
+
                     struct nk_color cir_color = nk_rgb(100, 100, 100);
-                    if (nk_input_is_mouse_hovering_rect(in, circle) || 
+                    if (nk_input_is_mouse_hovering_rect(in, target) || 
                             (nodedit->linking.active && nodedit->linking.node == it &&
                              nodedit->linking.input_slot == n))
                         cir_color = nk_rgb(100, 200, 100);
                     nk_fill_circle(canvas, circle, cir_color);
 
                     /* delete link */
-                    if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, circle, nk_true)) {
+                    if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, target, nk_true)) {
                         node_editor_unlink_out(nodedit, it->ID, n);
                     }
 
                     /* start linking process */
-                    if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, circle, nk_true)) {
+                    if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, target, nk_true)) {
                         nodedit->linking.active = nk_true;
                         nodedit->linking.node = it;
                         nodedit->linking.input_id = it->ID;
@@ -614,26 +617,29 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                 }
 
                 /* input connector */
-                space = node->bounds.h / (float)((it->input_count) + 1);
+                space = node_panel->bounds.h / (float)((it->input_count) + 1);
                 for (n = 0; n < it->input_count; ++n) {
                     struct nk_rect circle;
-                    circle.x = node->bounds.x-4;
-                    circle.y = node->bounds.y + space * (float)(n+1);
+                    circle.x = node_panel->bounds.x-4;
+                    circle.y = node_panel->bounds.y + space * (float)(n+1);
                     circle.w = 8; circle.h = 8;
+
+                    struct nk_rect target = circle;
+                    target.w = 30; target.h = 30;
                     struct nk_color cir_color = nk_rgb(100, 100, 100);
-                    if (nk_input_is_mouse_hovering_rect(in, circle) && 
+                    if (nk_input_is_mouse_hovering_rect(in, target) && 
                             nodedit->linking.active)
                         cir_color = nk_rgb(100, 200, 100);
                     nk_fill_circle(canvas, circle, cir_color);
 
                     /* delete link */
-                    if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, circle, nk_true)) {
+                    if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, target, nk_true)) {
                         printf("Delete link %d\n", it->ID);
                         node_editor_unlink_in(nodedit, it->ID, n);
                     }
 
                     if (nk_input_is_mouse_released(in, NK_BUTTON_LEFT) &&
-                            nk_input_is_mouse_hovering_rect(in, circle) &&
+                            nk_input_is_mouse_hovering_rect(in, target) &&
                             nodedit->linking.active && nodedit->linking.node != it) {
                         nodedit->linking.active = nk_false;
                         node_editor_link(nodedit, nodedit->linking.input_id,
@@ -656,8 +662,8 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                 struct node_link *link = &nodedit->links[n];
                 struct node *ni = node_editor_find(nodedit, link->input_id);
                 struct node *no = node_editor_find(nodedit, link->output_id);
-                float spacei = node->bounds.h / (float)((ni->output_count) + 1);
-                float spaceo = node->bounds.h / (float)((no->input_count) + 1);
+                float spacei = node_panel->bounds.h / (float)((ni->output_count) + 1);
+                float spaceo = node_panel->bounds.h / (float)((no->input_count) + 1);
                 struct nk_vec2 l0 = nk_layout_space_to_screen(ctx,
                     nk_vec2(ni->bounds.x + ni->bounds.w, 3.0f + ni->bounds.y + spacei * (float)(link->input_slot+1)));
                 struct nk_vec2 l1 = nk_layout_space_to_screen(ctx,
