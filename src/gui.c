@@ -418,7 +418,6 @@ static bool node_editor_is_out_linked(struct node_editor *editor, int out_id, in
     return false;
 }
 
-// TODO: this is broken
 static void
 node_editor_unlink_in(struct node_editor *editor, int in_id, int in_slot)
 {
@@ -437,25 +436,34 @@ node_editor_unlink_in(struct node_editor *editor, int in_id, int in_slot)
     editor->link_count--;
 }
 
-// TODO: this is broken
 static void
-node_editor_unlink_out(struct node_editor *editor, int out_id, int out_slot)
+node_editor_delete_link(struct node_editor *editor, int in_id, int in_slot)
 {
-    struct node_link *link;
-    nk_bool move = nk_false;
+    struct node *node = node_editor_find(editor, in_id);
+    if (!node)  {
+        fprintf(stderr, "[ERROR] failed to find node\n");
+        return;
+    }
+
+    struct node_link *link = NULL;
     for (int i=0; i<editor->link_count; i++) {
         link = &editor->links[i];
-        if (!move && (link->output_id == out_id && link->output_slot == out_slot))
-            move = nk_true;
-
-        if (move) {
-            if (i < editor->link_count - 1)
-                editor->links[i] = editor->links[i+1];
-        }
+        if (link->input_id == in_id && link->input_slot == in_slot)
+            link = &editor->links[i];
     }
-    editor->link_count--;
-}
+    if (!link) {
+        fprintf(stderr, "[ERROR] delete link: failed to find link\n");
+        return;
+    }
+    ma_result result = ma_node_detach_output_bus(node->audio_node, link->output_slot);
+    if (result != MA_SUCCESS) {
+        fprintf(stderr, "[ERROR] failed to detach output bus, error code = %d\n", result);
+        return;
+    }
 
+    node_editor_unlink_in(editor, in_id, in_slot);
+    printf("[DEBUG] detatching nodes %d(%d) -> %d(%d)\n", link->input_id, link->input_slot, link->output_id, link->output_slot);
+}
 
 static void
 node_editor_delete(struct node_editor *editor, struct node *node)
@@ -631,9 +639,10 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                     struct nk_rect target = circle;
                     target.x -= 20; target.y -= 20;
                     target.w += 40; target.h += 40;
+                    bool is_linked = node_editor_is_in_linked(nodedit, it->ID, n); 
 
                     struct nk_color cir_color = nk_rgb(100, 100, 100);
-                    if (node_editor_is_in_linked(nodedit, it->ID, n))
+                    if (is_linked)
                         cir_color = nk_rgb(100, 100, 200);
                     if (nk_input_is_mouse_hovering_rect(in, target) || 
                             (nodedit->linking.active && nodedit->linking.node == it &&
@@ -641,10 +650,15 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                         cir_color = nk_rgb(100, 200, 100);
                     nk_fill_circle(canvas, circle, cir_color);
 
-                    /* delete link */
-                    if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, target, nk_true)) {
-                        node_editor_unlink_out(nodedit, it->ID, n);
-                        fprintf(stdout, "[INFO] link deleted\n");
+                    if (is_linked) {
+                        if (nk_contextual_begin(ctx, 0, nk_vec2(150, 220), target)) {
+                            nk_layout_row_dynamic(ctx, 25, 1);
+                            if (nk_contextual_item_label(ctx, "Delete Link", NK_TEXT_LEFT)) {
+                                node_editor_delete_link(nodedit, it->ID, n);
+                            }
+
+                            nk_contextual_end(ctx);
+                        }
                     }
 
                     /* start linking process */
@@ -677,6 +691,7 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                     struct nk_rect target = circle;
                     target.x -= 20; target.y -= 20;
                     target.w += 40; target.h += 40;
+
                     struct nk_color cir_color = nk_rgb(100, 100, 100);
                     if (node_editor_is_out_linked(nodedit, it->ID, n))
                         cir_color = nk_rgb(100, 100, 200);
@@ -685,11 +700,6 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                         cir_color = nk_rgb(100, 200, 100);
                     nk_fill_circle(canvas, circle, cir_color);
 
-                    /* delete link */
-                    if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, target, nk_true)) {
-                        node_editor_unlink_in(nodedit, it->ID, n);
-                        fprintf(stdout, "[INFO] link deleted\n");
-                    }
 
                     if (nk_input_is_mouse_released(in, NK_BUTTON_LEFT) &&
                             nk_input_is_mouse_hovering_rect(in, target) &&
