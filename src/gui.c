@@ -437,18 +437,12 @@ node_editor_unlink_in(struct node_editor *editor, int in_id, int in_slot)
 }
 
 static void
-node_editor_delete_link(struct node_editor *editor, int in_id, int in_slot)
+node_editor_delete_link(struct node_editor *editor, struct node *node, int in_slot)
 {
-    struct node *node = node_editor_find(editor, in_id);
-    if (!node)  {
-        fprintf(stderr, "[ERROR] failed to find node\n");
-        return;
-    }
-
     struct node_link *link = NULL;
     for (int i=0; i<editor->link_count; i++) {
         link = &editor->links[i];
-        if (link->input_id == in_id && link->input_slot == in_slot)
+        if (link->input_id == node->ID && link->input_slot == in_slot)
             link = &editor->links[i];
     }
     if (!link) {
@@ -461,7 +455,7 @@ node_editor_delete_link(struct node_editor *editor, int in_id, int in_slot)
         return;
     }
 
-    node_editor_unlink_in(editor, in_id, in_slot);
+    node_editor_unlink_in(editor, node->ID, in_slot);
     printf("[DEBUG] detatching nodes %d(%d) -> %d(%d)\n", link->input_id, link->input_slot, link->output_id, link->output_slot);
 }
 
@@ -654,7 +648,7 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                         if (nk_contextual_begin(ctx, 0, nk_vec2(150, 220), target)) {
                             nk_layout_row_dynamic(ctx, 25, 1);
                             if (nk_contextual_item_label(ctx, "Delete Link", NK_TEXT_LEFT)) {
-                                node_editor_delete_link(nodedit, it->ID, n);
+                                node_editor_delete_link(nodedit, it, n);
                             }
 
                             nk_contextual_end(ctx);
