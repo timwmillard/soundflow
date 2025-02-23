@@ -427,7 +427,7 @@ node_editor_init(struct node_editor *editor)
     }
 
     node_editor_add_source_decoder(editor, "Data Source 1", nk_rect(40, 10, 180, 220), 0, 1, "sounds/jungle.mp3");
-    node_editor_add_endpoint(editor, "Endpoint", nk_rect(540, 10, 180, 220), 1, 0);
+    node_editor_add_endpoint(editor, "Endpoint", nk_rect(940, 10, 180, 220), 1, 0);
     /*node_editor_link(editor, 0, 0, 1, 0);*/
 
     editor->show_grid = nk_true;
