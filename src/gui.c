@@ -568,77 +568,75 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                 nk_group_end(ctx);
                 
                 // node connector and linking
-                {
-                    float space;
-                    struct nk_rect bounds;
-                    bounds = nk_layout_space_rect_to_local(ctx, node->bounds);
-                    bounds.x += nodedit->scrolling.x;
-                    bounds.y += nodedit->scrolling.y;
-                    it->bounds = bounds;
+                float space;
+                struct nk_rect bounds;
+                bounds = nk_layout_space_rect_to_local(ctx, node->bounds);
+                bounds.x += nodedit->scrolling.x;
+                bounds.y += nodedit->scrolling.y;
+                it->bounds = bounds;
 
-                    /* output connector */
-                    space = node->bounds.h / (float)((it->output_count) + 1);
-                    for (n = 0; n < it->output_count; ++n) {
-                        struct nk_rect circle;
-                        circle.x = node->bounds.x + node->bounds.w-4;
-                        circle.y = node->bounds.y + space * (float)(n+1);
-                        circle.w = 8; circle.h = 8;
-                        struct nk_color cir_color = nk_rgb(100, 100, 100);
-                        if (nk_input_is_mouse_hovering_rect(in, circle) || 
+                /* output connector */
+                space = node->bounds.h / (float)((it->output_count) + 1);
+                for (n = 0; n < it->output_count; ++n) {
+                    struct nk_rect circle;
+                    circle.x = node->bounds.x + node->bounds.w-4;
+                    circle.y = node->bounds.y + space * (float)(n+1);
+                    circle.w = 8; circle.h = 8;
+                    struct nk_color cir_color = nk_rgb(100, 100, 100);
+                    if (nk_input_is_mouse_hovering_rect(in, circle) || 
                             (nodedit->linking.active && nodedit->linking.node == it &&
-                            nodedit->linking.input_slot == n))
-                            cir_color = nk_rgb(100, 200, 100);
-                        nk_fill_circle(canvas, circle, cir_color);
+                             nodedit->linking.input_slot == n))
+                        cir_color = nk_rgb(100, 200, 100);
+                    nk_fill_circle(canvas, circle, cir_color);
 
-                        /* delete link */
-                        if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, circle, nk_true)) {
-                            node_editor_unlink_out(nodedit, it->ID, n);
-                        }
-
-                        /* start linking process */
-                        if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, circle, nk_true)) {
-                            nodedit->linking.active = nk_true;
-                            nodedit->linking.node = it;
-                            nodedit->linking.input_id = it->ID;
-                            nodedit->linking.input_slot = n;
-                        }
-
-                        /* draw curve from linked node slot to mouse position */
-                        if (nodedit->linking.active && nodedit->linking.node == it &&
-                            nodedit->linking.input_slot == n) {
-                            struct nk_vec2 l0 = nk_vec2(circle.x + 3, circle.y + 3);
-                            struct nk_vec2 l1 = in->mouse.pos;
-                            nk_stroke_curve(canvas, l0.x, l0.y, l0.x + 50.0f, l0.y,
-                                l1.x - 50.0f, l1.y, l1.x, l1.y, 1.0f, nk_rgb(100, 100, 100));
-                        }
+                    /* delete link */
+                    if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, circle, nk_true)) {
+                        node_editor_unlink_out(nodedit, it->ID, n);
                     }
 
-                    /* input connector */
-                    space = node->bounds.h / (float)((it->input_count) + 1);
-                    for (n = 0; n < it->input_count; ++n) {
-                        struct nk_rect circle;
-                        circle.x = node->bounds.x-4;
-                        circle.y = node->bounds.y + space * (float)(n+1);
-                        circle.w = 8; circle.h = 8;
-                        struct nk_color cir_color = nk_rgb(100, 100, 100);
-                        if (nk_input_is_mouse_hovering_rect(in, circle) && 
+                    /* start linking process */
+                    if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, circle, nk_true)) {
+                        nodedit->linking.active = nk_true;
+                        nodedit->linking.node = it;
+                        nodedit->linking.input_id = it->ID;
+                        nodedit->linking.input_slot = n;
+                    }
+
+                    /* draw curve from linked node slot to mouse position */
+                    if (nodedit->linking.active && nodedit->linking.node == it &&
+                            nodedit->linking.input_slot == n) {
+                        struct nk_vec2 l0 = nk_vec2(circle.x + 3, circle.y + 3);
+                        struct nk_vec2 l1 = in->mouse.pos;
+                        nk_stroke_curve(canvas, l0.x, l0.y, l0.x + 50.0f, l0.y,
+                                l1.x - 50.0f, l1.y, l1.x, l1.y, 1.0f, nk_rgb(100, 100, 100));
+                    }
+                }
+
+                /* input connector */
+                space = node->bounds.h / (float)((it->input_count) + 1);
+                for (n = 0; n < it->input_count; ++n) {
+                    struct nk_rect circle;
+                    circle.x = node->bounds.x-4;
+                    circle.y = node->bounds.y + space * (float)(n+1);
+                    circle.w = 8; circle.h = 8;
+                    struct nk_color cir_color = nk_rgb(100, 100, 100);
+                    if (nk_input_is_mouse_hovering_rect(in, circle) && 
                             nodedit->linking.active)
-                            cir_color = nk_rgb(100, 200, 100);
-                        nk_fill_circle(canvas, circle, cir_color);
+                        cir_color = nk_rgb(100, 200, 100);
+                    nk_fill_circle(canvas, circle, cir_color);
 
-                        /* delete link */
-                        if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, circle, nk_true)) {
-                            printf("Delete link %d\n", it->ID);
-                            node_editor_unlink_in(nodedit, it->ID, n);
-                        }
+                    /* delete link */
+                    if (nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, circle, nk_true)) {
+                        printf("Delete link %d\n", it->ID);
+                        node_editor_unlink_in(nodedit, it->ID, n);
+                    }
 
-                        if (nk_input_is_mouse_released(in, NK_BUTTON_LEFT) &&
+                    if (nk_input_is_mouse_released(in, NK_BUTTON_LEFT) &&
                             nk_input_is_mouse_hovering_rect(in, circle) &&
                             nodedit->linking.active && nodedit->linking.node != it) {
-                            nodedit->linking.active = nk_false;
-                            node_editor_link(nodedit, nodedit->linking.input_id,
+                        nodedit->linking.active = nk_false;
+                        node_editor_link(nodedit, nodedit->linking.input_id,
                                 nodedit->linking.input_slot, it->ID, n);
-                        }
                     }
                 }
             next:
