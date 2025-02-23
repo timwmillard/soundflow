@@ -11,6 +11,14 @@
 
 #include "file_dialog.c"
 
+const char *basename(const char *path)
+{
+    const char *filename = strrchr(path, '/');
+    if (filename == NULL)
+        filename = strrchr(path, '\\'); // Windows
+    return filename? filename + 1 : path;
+}
+
 #define CHANNELS 2
 #define FORMAT ma_format_f32
 #define SAMPLE_RATE 48000
@@ -525,7 +533,7 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
                             nk_label(ctx, "Audio Device", NK_TEXT_ALIGN_CENTERED);
                             break;
                         case NODE_SOURCE_DECODER:
-                            nk_label(ctx, it->source_decoder.file_name, NK_TEXT_ALIGN_CENTERED);
+                            nk_label(ctx, basename(it->source_decoder.file_name), NK_TEXT_ALIGN_CENTERED);
                             bool looping = nk_check_label(ctx, "Loop", ma_data_source_node_is_looping(&it->source_decoder.source));
                             ma_data_source_node_set_looping(&it->source_decoder.source, looping);
                             break;
