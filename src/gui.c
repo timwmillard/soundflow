@@ -77,7 +77,6 @@ struct node {
     int output_count;
     struct node *next;
     struct node *prev;
-    bool delete;
 
     ma_node *audio_node;
 
@@ -557,7 +556,6 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
 
             // Draw each node panel
             while (it) {
-                if (it->delete) goto next;
 
                 /* calculate scrolled node window position and size */
                 nk_layout_space_push(ctx, nk_rect(it->bounds.x - nodedit->scrolling.x,
@@ -569,7 +567,6 @@ static int node_editor(struct nk_context *ctx, struct nk_rect bounds)
 
                     node_panel = nk_window_get_panel(ctx);
                     if (node_panel->flags & NK_WINDOW_HIDDEN) {
-                        it->delete = true;
                         nk_group_end(ctx);
                         node_editor_delete(nodedit, it);
                         goto next;
