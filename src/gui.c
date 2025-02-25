@@ -247,7 +247,7 @@ node_editor_add_endpoint(struct node_editor *editor, const char *name, struct nk
 // Source Decoder
 static void
 node_editor_add_source_decoder(struct node_editor *editor, const char *name, struct nk_rect bounds,
-    int in_count, int out_count, char *file_name)
+    int in_count, int out_count, const char *file_name)
 {
 
     struct node *node = node_editor_add(editor, name, bounds, in_count, out_count);
@@ -273,7 +273,7 @@ node_editor_add_source_decoder(struct node_editor *editor, const char *name, str
     result = ma_decoder_init_file(node->source_decoder.file_name, &decoder_config, &node->source_decoder.decoder);
     if (result != MA_SUCCESS) {
         fprintf(stderr, "Error: failed to initalise decoder, error code = %d\n", result);
-        exit(1);
+        return;
     }
 
     // Data Source
@@ -281,7 +281,7 @@ node_editor_add_source_decoder(struct node_editor *editor, const char *name, str
     result = ma_data_source_node_init(&editor->audio_graph, &source_node_config, NULL, &node->source_decoder.source);
     if (result != MA_SUCCESS) {
         fprintf(stderr, "Error: failed to initalise source node, error code = %d\n", result);
-        exit(1);
+        return;
     }
     node->audio_node = &node->source_decoder.source;
 

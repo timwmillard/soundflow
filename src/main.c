@@ -58,6 +58,9 @@ void frame(void)
 #pragma clang diagnostic ignored "-Wswitch"
 void input(const sapp_event* event)
 {
+    int files_dropped;
+    const char *file_path;
+
     snk_handle_event(event);
     switch(event->type) {
         case SAPP_EVENTTYPE_KEY_DOWN:
@@ -66,6 +69,15 @@ void input(const sapp_event* event)
             }
             break;
         case SAPP_EVENTTYPE_RESIZED:
+            break;
+        case SAPP_EVENTTYPE_FILES_DROPPED:
+            files_dropped = sapp_get_num_dropped_files();
+            for (int i=0; i<files_dropped; i++) {
+                const char* file_path = sapp_get_dropped_file_path(i);
+                node_editor_add_source_decoder(&nodeEditor, "Sound File",
+                        nk_rect(event->mouse_x + (i * 10), event->mouse_y + (i * 10), 180, 220), 0, 1, file_path);
+            }
+
             break;
     }
 }
@@ -107,7 +119,10 @@ sapp_desc sokol_main(int argc, char* argv[])
         .event_cb = input,
         .cleanup_cb = cleanup,
         .window_title = "Soundflow",
-        .logger.func = slog_func
+        .logger.func = slog_func,
+        .enable_dragndrop = true,
+        .high_dpi = false,
+        .max_dropped_files = 20,
     };
 }
 
