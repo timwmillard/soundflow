@@ -3,6 +3,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <commdlg.h>
 #elif __APPLE__
 #include <CoreFoundation/CoreFoundation.h>
 #include <AppKit/AppKit.h>

@@ -19,7 +19,7 @@ endif
 ifeq ($(platform), windows)
 	CFLAGS=-std=$(CSTD)
 	CC=x86_64-w64-mingw32-gcc
-	LIBS+=-lkernel32 -luser32 -lshell32 -lgdi32 -ld3d11 -ldxgi
+	LIBS+=-lkernel32 -luser32 -lshell32 -lgdi32 -ld3d11 -ldxgi -lComdlg32
 	OUTEXT=.exe
 else ifeq ($(platform), linux)
 	CFLAGS=-std=$(CSTD)

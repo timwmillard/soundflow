@@ -435,6 +435,20 @@ node_editor_unlink_in(struct node_editor *editor, int in_id, int in_slot)
     editor->link_count--;
 }
 
+// static void
+// node_editor_delete_links(struct node_editor *editor, struct node *node)
+// {
+//     struct node_link *link;
+//     for (int i=0; i<editor->link_count; i++) {
+//         link = &editor->links[i];
+//         if (link->input_id == node->ID) {
+//             link = &editor->links[i];
+//         }
+//         if (link->output_id == node->ID) {
+//         }
+//     }
+// }
+
 static void
 node_editor_delete_link(struct node_editor *editor, struct node *node, int in_slot)
 {
@@ -459,10 +473,52 @@ node_editor_delete_link(struct node_editor *editor, struct node *node, int in_sl
 }
 
 static void
+node_editor_delete_link_out(struct node_editor *editor, struct node *node, int out_slot)
+{
+    struct node_link *link = NULL;
+    for (int i=0; i<editor->link_count; i++) {
+        link = &editor->links[i];
+        if (link->output_id == node->ID && link->output_slot == out_slot)
+            link = &editor->links[i];
+    }
+    if (!link) {
+        fprintf(stderr, "[ERROR] delete link: failed to find link\n");
+        return;
+    }
+    // find upstream node
+    node = node_editor_find(editor, link->input_id);
+    if (!node) {
+        fprintf(stderr, "[ERROR] delete link: failed to find upstream node\n");
+        return;
+    }
+    ma_result result = ma_node_detach_output_bus(node->audio_node, link->output_slot);
+    if (result != MA_SUCCESS) {
+        fprintf(stderr, "[ERROR] failed to detach output bus, error code = %d\n", result);
+        return;
+    }
+
+    node_editor_unlink_in(editor, node->ID, out_slot);
+    printf("[DEBUG] detatching nodes %d(%d) -> %d(%d)\n", link->input_id, link->input_slot, link->output_id, link->output_slot);
+}
+
+static void
 node_editor_delete(struct node_editor *editor, struct node *node)
 {
+    struct node_link *link;
+start:
     node_editor_pop(editor, node);
     // TODO: delete links
+    for (int i=0; i<editor->link_count; i++) {
+        link = &editor->links[i];
+        if (link->output_id == node->ID) {
+            node_editor_delete_link(editor, node, link->output_slot);
+            goto start;
+        }
+        if (link->input_id == node->ID) {
+            node_editor_delete_link_out(editor, node, link->input_slot);
+            goto start;
+        }
+    }
 }
 
 static void

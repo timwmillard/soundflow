@@ -298,7 +298,7 @@ extern "C" {
 #endif
 
 #ifndef NK_STATIC_ASSERT
-  #define NK_STATIC_ASSERT(exp) typedef char NK_UNIQUE_NAME(_dummy_array)[(exp)?1:-1]
+  #define NK_STATIC_ASSERT(exp) typedef char NK_UNIQUE_NAME(_dummy_array)[(exp)?1:0]
 #endif
 
 #ifndef NK_FILE_LINE
